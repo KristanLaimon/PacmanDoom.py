@@ -1,56 +1,58 @@
-# DOOM Search
+# PacmanDoom.py
 
-Juego de laberinto tipo Pac-Man/DOOM hecho con Python y pygame. Por defecto abre en modo clasico 2D; el boton `Modo 3D` cambia a la vista con raycasting y mapa de busqueda en tiempo real:
+![image](.github/logo.png)
 
-- A* calcula una ruta sugerida desde el jugador hasta el pellet mas cercano.
-- Hay un fantasma que persigue con Dijkstra.
-- El panel lateral muestra nodos explorados, frontera y arbol de decision.
-- Los dots mantienen su color base y muestran aros con el color del enemigo que los alcanzo durante la busqueda.
-- `+` y `-` cambian la velocidad en medio del juego.
-- En modo 3D, las flechas/WASD se interpretan relativo a tu vista en primera persona.
+Pac-Man/DOOM-style maze game built with Python and pygame. By default, it opens in classic 2D mode; the `3D Mode` button switches to a raycasting view with a real-time search map:
 
-## Ejecutar
+- A* calculates a suggested path from the player to the nearest pellet.
+- A ghost chases the player using Dijkstra.
+- The side panel shows explored nodes, the frontier, and the decision tree.
+- Dots keep their base color and show rings using the color of the enemy that reached them during the search.
+- `+` and `-` change the game speed while playing.
+- In 3D mode, arrow keys/WASD are interpreted relative to your first-person view.
 
-Para instalar las dependencias despues de clonar el repositorio:
+## Running
+
+To install dependencies after cloning the repository:
 
 ```powershell
 .\install.ps1
 ```
 
-Si Windows bloquea scripts de PowerShell, usa:
+If Windows blocks PowerShell scripts, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-Luego ejecuta el juego:
+Then run the game:
 
 ```powershell
 .\run_game.ps1
 ```
 
-El script deja el cache, el Python gestionado por `uv` y el entorno virtual del juego dentro del proyecto. Usa Python 3.13 para evitar que pygame intente compilarse en Python 3.14.
+The script keeps the cache, the `uv`-managed Python install, and the game's virtual environment inside the project. It uses Python 3.13 to avoid pygame trying to compile on Python 3.14.
 
-Si ya tienes el entorno preparado, tambien puedes ejecutar el modulo directamente:
+If the environment is already prepared, you can also run the module directly:
 
 ```powershell
 uv run python -m doom_search
 ```
 
-## Controles
+## Controls
 
-- Flechas o `WASD`: mover al jugador.
-- `M` o boton de la esquina: cambiar entre modo clasico y modo 3D.
-- `+` o `-`: subir o bajar velocidad.
-- `H`: mostrar u ocultar la ruta sugerida por A*.
-- `G`: mostrar u ocultar la ruta Dijkstra del fantasma.
-- `T`: mostrar u ocultar lineas del arbol de decision.
-- `Espacio`: pausar o continuar.
-- `R`: reiniciar.
+- Arrow keys or `WASD`: move the player.
+- `M` or the corner button: switch between classic mode and 3D mode.
+- `+` or `-`: increase or decrease speed.
+- `H`: show or hide the A* suggested path.
+- `G`: show or hide the ghost's Dijkstra path.
+- `T`: show or hide decision tree lines.
+- `Space`: pause or resume.
+- `R`: restart.
 
-## Estructura
+## Structure
 
-- `doom_search/level.py`: mapa, paredes, pellets y vecinos.
-- `doom_search/algorithms.py`: Dijkstra, BFS, A* y reconstruccion de rutas.
-- `doom_search/game_state.py`: reglas del juego y snapshot de busqueda.
-- `doom_search/pygame_app.py`: vista del jugador, mapa tactico e input con pygame.
+- `doom_search/level.py`: map, walls, pellets, and neighbors.
+- `doom_search/algorithms.py`: Dijkstra, BFS, A*, and path reconstruction.
+- `doom_search/game_state.py`: game rules and search snapshot.
+- `doom_search/pygame_app.py`: player view, tactical map, and pygame input.
