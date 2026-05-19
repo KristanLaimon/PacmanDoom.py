@@ -11,6 +11,20 @@ Juego de laberinto tipo Pac-Man/DOOM hecho con Python y pygame. Por defecto abre
 
 ## Ejecutar
 
+Para instalar las dependencias despues de clonar el repositorio:
+
+```powershell
+.\install.ps1
+```
+
+Si Windows bloquea scripts de PowerShell, usa:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Luego ejecuta el juego:
+
 ```powershell
 .\run_game.ps1
 ```
