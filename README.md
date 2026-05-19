@@ -1,12 +1,13 @@
 # DOOM Search
 
-Juego de laberinto tipo DOOM hecho con Python y pygame. La izquierda muestra una vista 3D con raycasting y la derecha muestra el mapa de busqueda en tiempo real:
+Juego de laberinto tipo Pac-Man/DOOM hecho con Python y pygame. Por defecto abre en modo clasico 2D; el boton `Modo 3D` cambia a la vista con raycasting y mapa de busqueda en tiempo real:
 
 - A* calcula una ruta sugerida desde el jugador hasta el pellet mas cercano.
-- Hay dos fantasmas: uno persigue con A* y otro con BFS.
+- Hay un fantasma que persigue con Dijkstra.
 - El panel lateral muestra nodos explorados, frontera y arbol de decision.
 - Los dots mantienen su color base y muestran aros con el color del enemigo que los alcanzo durante la busqueda.
 - `+` y `-` cambian la velocidad en medio del juego.
+- En modo 3D, las flechas/WASD se interpretan relativo a tu vista en primera persona.
 
 ## Ejecutar
 
@@ -25,9 +26,10 @@ uv run python -m doom_search
 ## Controles
 
 - Flechas o `WASD`: mover al jugador.
+- `M` o boton de la esquina: cambiar entre modo clasico y modo 3D.
 - `+` o `-`: subir o bajar velocidad.
 - `H`: mostrar u ocultar la ruta sugerida por A*.
-- `G`: mostrar u ocultar las rutas BFS de los enemigos.
+- `G`: mostrar u ocultar la ruta Dijkstra del fantasma.
 - `T`: mostrar u ocultar lineas del arbol de decision.
 - `Espacio`: pausar o continuar.
 - `R`: reiniciar.
@@ -35,6 +37,6 @@ uv run python -m doom_search
 ## Estructura
 
 - `doom_search/level.py`: mapa, paredes, pellets y vecinos.
-- `doom_search/algorithms.py`: BFS, A* y reconstruccion de rutas.
+- `doom_search/algorithms.py`: Dijkstra, BFS, A* y reconstruccion de rutas.
 - `doom_search/game_state.py`: reglas del juego y snapshot de busqueda.
 - `doom_search/pygame_app.py`: vista del jugador, mapa tactico e input con pygame.

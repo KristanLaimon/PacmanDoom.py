@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from doom_search.algorithms import SearchResult, a_star, a_star_to_nearest_goal, bfs
+from doom_search.algorithms import SearchResult, a_star, a_star_to_nearest_goal, bfs, dijkstra
 from doom_search.colors import sum_colors
 from doom_search.entities import Direction, Ghost, Pos
 from doom_search.level import DEFAULT_MAZE, Maze
@@ -41,8 +41,7 @@ class GameState:
         self.power_pellets = set(self.maze.power_pellets)
         self.player = self.maze.player_start
         self.ghosts = [
-            Ghost((9, 3), "#ff4d6d", "A*", (9, 3), "A*", "#5b1f2d", "#ff4d6d"),
-            Ghost((11, 11), "#4cc9f0", "BFS", (11, 11), "BFS", "#183f4d", "#4cc9f0"),
+            Ghost((9, 3), "#ff4d6d", "Dijkstra", (9, 3), "Dijkstra", "#5b1f2d", "#ff4d6d"),
         ]
         self.direction = "Left"
         self.next_direction = "Left"
@@ -119,10 +118,15 @@ class GameState:
     def a_star(self, start: Pos, goal: Pos) -> SearchResult:
         return a_star(start, goal, self.maze.neighbors)
 
+    def dijkstra(self, start: Pos, goal: Pos) -> SearchResult:
+        return dijkstra(start, goal, self.maze.neighbors)
+
     def ghost_search(self, ghost: Ghost) -> SearchResult:
         if ghost.algorithm == "A*":
             return self.a_star(ghost.pos, self.player)
-        return self.bfs(ghost.pos, self.player)
+        if ghost.algorithm == "BFS":
+            return self.bfs(ghost.pos, self.player)
+        return self.dijkstra(ghost.pos, self.player)
 
     def player_hint(self) -> SearchResult:
         return a_star_to_nearest_goal(self.player, self.pellets | self.power_pellets, self.maze.neighbors)

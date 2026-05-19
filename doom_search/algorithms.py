@@ -42,6 +42,36 @@ def bfs(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
     return SearchResult([start], explored, came_from, frontier)
 
 
+def dijkstra(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
+    open_heap: list[tuple[int, int, Pos]] = [(0, 0, start)]
+    came_from: dict[Pos, Pos | None] = {start: None}
+    best_cost: dict[Pos, int] = {start: 0}
+    explored: set[Pos] = set()
+    frontier: set[Pos] = {start}
+    tie_breaker = 0
+
+    while open_heap:
+        _, _, current = heapq.heappop(open_heap)
+        frontier.discard(current)
+        if current in explored:
+            continue
+        explored.add(current)
+        if current == goal:
+            return SearchResult(reconstruct_path(came_from, current), explored, came_from, frontier)
+
+        for neighbor in neighbors(current):
+            new_cost = best_cost[current] + 1
+            if new_cost >= best_cost.get(neighbor, 10**9):
+                continue
+            best_cost[neighbor] = new_cost
+            came_from[neighbor] = current
+            tie_breaker += 1
+            frontier.add(neighbor)
+            heapq.heappush(open_heap, (new_cost, tie_breaker, neighbor))
+
+    return SearchResult([start], explored, came_from, frontier)
+
+
 def a_star_to_nearest_goal(start: Pos, goals: set[Pos], neighbors: NeighborFn) -> SearchResult:
     if not goals:
         return SearchResult([start], set(), {start: None}, set())

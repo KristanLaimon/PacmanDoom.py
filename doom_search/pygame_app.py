@@ -6,13 +6,14 @@ import pygame
 
 from doom_search.algorithms import SearchResult
 from doom_search.colors import fade
-from doom_search.entities import Pos
+from doom_search.entities import Direction, Pos
 from doom_search.game_state import GameState, SearchSnapshot
 from doom_search.level import KEY_TO_DIRECTION
 
 VIEW_WIDTH = 640
 VIEW_HEIGHT = 420
 MAP_CELL = 14
+CLASSIC_CELL = 28
 HUD_HEIGHT = 92
 PANEL_WIDTH = 360
 DEFAULT_TICK_MS = 320
@@ -27,12 +28,13 @@ VIEW_ANGLES = {
     "Left": math.pi,
     "Up": -math.pi / 2,
 }
+ANGLE_DIRECTIONS: list[Direction] = ["Right", "Down", "Left", "Up"]
 
 
 class PygameSearchGame:
     def __init__(self) -> None:
         pygame.init()
-        pygame.display.set_caption("DOOM Search: A* y BFS en tiempo real")
+        pygame.display.set_caption("Pac-Man Search: Dijkstra en tiempo real")
 
         self.state = GameState()
         self.view_width = VIEW_WIDTH
@@ -48,13 +50,23 @@ class PygameSearchGame:
         self.show_hint = True
         self.show_ghost_paths = True
         self.show_tree = True
+        self.mode = "classic"
         self.tick_ms = DEFAULT_TICK_MS
         self.last_tick = pygame.time.get_ticks()
+        self.mode_button_rect = pygame.Rect(0, 0, 0, 0)
         self.visual_player_start = (float(self.state.player[0]), float(self.state.player[1]))
         self.visual_player_end = self.visual_player_start
         self.visual_player_pos = self.visual_player_start
+        self.visual_ghost_starts = [(float(ghost.pos[0]), float(ghost.pos[1])) for ghost in self.state.ghosts]
+        self.visual_ghost_ends = list(self.visual_ghost_starts)
+        self.visual_ghost_positions = list(self.visual_ghost_starts)
         self.visual_move_start = self.last_tick
         self.visual_move_duration = self.tick_ms
+        self.visual_angle = VIEW_ANGLES[self.state.direction]
+        self.visual_angle_start = self.visual_angle
+        self.visual_angle_end = self.visual_angle
+        self.visual_turn_start = self.last_tick
+        self.visual_turn_duration = self.tick_ms
 
     def run(self) -> None:
         running = True
@@ -63,21 +75,51 @@ class PygameSearchGame:
             now = pygame.time.get_ticks()
             if now - self.last_tick >= self.tick_ms:
                 previous_player = self.state.player
+                previous_direction = self.state.direction
+                previous_ghosts = [ghost.pos for ghost in self.state.ghosts]
                 self.state.tick()
                 self.begin_player_animation(previous_player, self.state.player, now)
+                self.begin_ghost_animations(previous_ghosts, [ghost.pos for ghost in self.state.ghosts], now)
+                self.begin_turn_animation(previous_direction, self.state.direction, now)
                 self.last_tick = now
             self.update_visual_player(now)
+            self.update_visual_ghosts(now)
+            self.update_visual_angle(now)
             self.draw()
             self.clock.tick(SMOOTH_VIEW_FPS)
         pygame.quit()
 
     def begin_player_animation(self, previous: Pos, current: Pos, now: int) -> None:
+        animation = self.cell_animation(previous, current)
+        if animation is None:
+            self.snap_visual_player()
+            return
+
+        self.visual_player_start, self.visual_player_end = animation
+        self.visual_move_start = now
+        self.visual_move_duration = max(80, self.tick_ms)
+
+    def begin_ghost_animations(self, previous_positions: list[Pos], current_positions: list[Pos], now: int) -> None:
+        self.visual_ghost_starts = []
+        self.visual_ghost_ends = []
+        self.visual_move_start = now
+        self.visual_move_duration = max(80, self.tick_ms)
+        for previous, current in zip(previous_positions, current_positions):
+            animation = self.cell_animation(previous, current)
+            if animation is None:
+                start = (float(current[0]), float(current[1]))
+                end = start
+            else:
+                start, end = animation
+            self.visual_ghost_starts.append(start)
+            self.visual_ghost_ends.append(end)
+
+    def cell_animation(self, previous: Pos, current: Pos) -> tuple[tuple[float, float], tuple[float, float]] | None:
         wrapped_dx = abs(current[0] - previous[0])
         moved_through_tunnel = wrapped_dx == self.state.maze.width - 1 and current[1] == previous[1]
         moved_one_cell = abs(current[0] - previous[0]) + abs(current[1] - previous[1]) == 1
         if previous == current or not (moved_one_cell or moved_through_tunnel):
-            self.snap_visual_player()
-            return
+            return None
 
         start_x, start_y = float(previous[0]), float(previous[1])
         end_x, end_y = float(current[0]), float(current[1])
@@ -86,16 +128,37 @@ class PygameSearchGame:
                 end_x += self.state.maze.width
             else:
                 start_x += self.state.maze.width
-        self.visual_player_start = (start_x, start_y)
-        self.visual_player_end = (end_x, end_y)
-        self.visual_move_start = now
-        self.visual_move_duration = max(80, self.tick_ms)
+        return (start_x, start_y), (end_x, end_y)
+
+    def begin_turn_animation(self, previous: str, current: str, now: int) -> None:
+        if previous == current:
+            return
+
+        self.update_visual_angle(now)
+        target_angle = self.visual_angle + normalize_angle(VIEW_ANGLES[current] - self.visual_angle)
+        self.visual_angle_start = self.visual_angle
+        self.visual_angle_end = target_angle
+        self.visual_turn_start = now
+        self.visual_turn_duration = max(95, min(190, int(self.tick_ms * 0.58)))
 
     def snap_visual_player(self) -> None:
         current = (float(self.state.player[0]), float(self.state.player[1]))
         self.visual_player_start = current
         self.visual_player_end = current
         self.visual_player_pos = current
+        self.snap_visual_ghosts()
+        self.snap_visual_angle()
+
+    def snap_visual_ghosts(self) -> None:
+        positions = [(float(ghost.pos[0]), float(ghost.pos[1])) for ghost in self.state.ghosts]
+        self.visual_ghost_starts = positions
+        self.visual_ghost_ends = positions
+        self.visual_ghost_positions = positions
+
+    def snap_visual_angle(self) -> None:
+        self.visual_angle = VIEW_ANGLES[self.state.direction]
+        self.visual_angle_start = self.visual_angle
+        self.visual_angle_end = self.visual_angle
 
     def update_visual_player(self, now: int) -> None:
         elapsed = max(0, now - self.visual_move_start)
@@ -105,10 +168,31 @@ class PygameSearchGame:
         y = self.visual_player_start[1] + (self.visual_player_end[1] - self.visual_player_start[1]) * eased
         self.visual_player_pos = (x % self.state.maze.width, y)
 
+    def update_visual_ghosts(self, now: int) -> None:
+        elapsed = max(0, now - self.visual_move_start)
+        progress = min(1.0, elapsed / self.visual_move_duration)
+        eased = progress * progress * (3.0 - 2.0 * progress)
+        self.visual_ghost_positions = []
+        for start, end in zip(self.visual_ghost_starts, self.visual_ghost_ends):
+            x = start[0] + (end[0] - start[0]) * eased
+            y = start[1] + (end[1] - start[1]) * eased
+            self.visual_ghost_positions.append((x % self.state.maze.width, y))
+
+    def update_visual_angle(self, now: int) -> None:
+        elapsed = max(0, now - self.visual_turn_start)
+        progress = min(1.0, elapsed / self.visual_turn_duration)
+        eased = 1 - (1 - progress) ** 4
+        self.visual_angle = normalize_angle(
+            self.visual_angle_start + (self.visual_angle_end - self.visual_angle_start) * eased
+        )
+
     def handle_events(self) -> bool:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return False
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if self.mode_button_rect.collidepoint(event.pos):
+                    self.toggle_mode()
             if event.type == pygame.KEYDOWN:
                 self.handle_key(event)
         return True
@@ -116,12 +200,17 @@ class PygameSearchGame:
     def handle_key(self, event: pygame.event.Event) -> None:
         key_name = pygame.key.name(event.key).lower()
         if key_name in KEY_TO_DIRECTION:
-            self.state.request_direction(KEY_TO_DIRECTION[key_name])
+            direction = KEY_TO_DIRECTION[key_name]
+            if self.mode == "3d":
+                direction = self.relative_direction(direction)
+            self.state.request_direction(direction)
         elif event.key == pygame.K_SPACE:
             self.state.toggle_pause()
         elif event.key == pygame.K_r:
             self.state.reset()
             self.snap_visual_player()
+        elif event.key == pygame.K_m:
+            self.toggle_mode()
         elif event.key == pygame.K_h:
             self.show_hint = not self.show_hint
         elif event.key == pygame.K_g:
@@ -133,13 +222,50 @@ class PygameSearchGame:
         elif event.key in {pygame.K_EQUALS, pygame.K_PLUS, pygame.K_KP_PLUS}:
             self.tick_ms = max(80, self.tick_ms - 30)
 
+    def toggle_mode(self) -> None:
+        self.mode = "3d" if self.mode == "classic" else "classic"
+
+    def relative_direction(self, requested: Direction) -> Direction:
+        facing = self.direction_from_angle(self.visual_angle)
+        facing_index = ANGLE_DIRECTIONS.index(facing)
+        offsets: dict[Direction, int] = {"Up": 0, "Right": 1, "Down": 2, "Left": -1}
+        return ANGLE_DIRECTIONS[(facing_index + offsets[requested]) % len(ANGLE_DIRECTIONS)]
+
+    def direction_from_angle(self, angle: float) -> Direction:
+        normalized = normalize_angle(angle)
+        index = round(normalized / (math.pi / 2)) % len(ANGLE_DIRECTIONS)
+        return ANGLE_DIRECTIONS[index]
+
     def draw(self) -> None:
         snapshot = self.state.search_snapshot()
         self.screen.fill(hex_color("#050507"))
-        self.draw_player_window()
-        self.draw_map_window(snapshot)
+        if self.mode == "classic":
+            self.draw_classic_mode(snapshot)
+        else:
+            self.draw_player_window()
+            self.draw_map_window(snapshot)
         self.draw_hud(snapshot)
+        self.draw_mode_button()
         pygame.display.flip()
+
+    def draw_classic_mode(self, snapshot: SearchSnapshot) -> None:
+        self.draw_classic_maze(snapshot)
+        self.draw_classic_lesson_panel(snapshot)
+
+    def draw_mode_button(self) -> None:
+        label = "Modo 3D" if self.mode == "classic" else "Modo clasico"
+        surface = self.small_font.render(label, True, hex_color("#f8fafc"))
+        width = surface.get_width() + 18
+        height = surface.get_height() + 10
+        self.mode_button_rect = pygame.Rect(
+            self.view_width + PANEL_WIDTH - width - 12,
+            10,
+            width,
+            height,
+        )
+        pygame.draw.rect(self.screen, hex_color("#1f2937"), self.mode_button_rect, border_radius=5)
+        pygame.draw.rect(self.screen, hex_color("#94a3b8"), self.mode_button_rect, 1, border_radius=5)
+        self.screen.blit(surface, surface.get_rect(center=self.mode_button_rect.center))
 
     def draw_player_window(self) -> None:
         self.draw_sky_and_floor()
@@ -159,7 +285,7 @@ class PygameSearchGame:
             pygame.draw.line(self.screen, (shade + 14, shade, max(12, shade - 8)), (0, y), (self.view_width, y))
 
     def draw_raycast_walls(self) -> None:
-        view_angle = VIEW_ANGLES[self.state.direction]
+        view_angle = self.visual_angle
         for x in range(0, self.view_width, RAY_STEP):
             ray_angle = view_angle - FOV / 2 + FOV * (x / self.view_width)
             distance, hit_axis = self.cast_ray(ray_angle)
@@ -203,11 +329,12 @@ class PygameSearchGame:
             sprites.append((self.sprite_distance(pellet), pellet, "#f8fafc", "pellet"))
         for pellet in self.state.power_pellets:
             sprites.append((self.sprite_distance(pellet), pellet, "#fef08a", "power"))
-        for ghost in self.state.ghosts:
-            sprites.append((self.sprite_distance(ghost.pos), ghost.pos, ghost.color, "enemy"))
+        for index, ghost in enumerate(self.state.ghosts):
+            pos = self.visual_ghost_positions[index] if index < len(self.visual_ghost_positions) else ghost.pos
+            sprites.append((self.sprite_distance_float(pos), pos, ghost.color, "enemy"))
 
         for _, pos, color, kind in sorted(sprites, reverse=True):
-            projection = self.project_sprite(pos)
+            projection = self.project_sprite_float(pos)
             if projection is None:
                 continue
             screen_x, depth = projection
@@ -230,10 +357,13 @@ class PygameSearchGame:
                     pygame.draw.circle(self.screen, hex_color("#ffffff"), (screen_x, y), radius + 4, 1)
 
     def project_sprite(self, pos: Pos) -> tuple[int, float] | None:
+        return self.project_sprite_float((float(pos[0]), float(pos[1])))
+
+    def project_sprite_float(self, pos: tuple[float, float]) -> tuple[int, float] | None:
         dx, dy = self.shortest_delta_to(pos)
         distance = max(0.01, math.hypot(dx, dy))
         angle_to_sprite = math.atan2(dy, dx)
-        angle_diff = normalize_angle(angle_to_sprite - VIEW_ANGLES[self.state.direction])
+        angle_diff = normalize_angle(angle_to_sprite - self.visual_angle)
         if abs(angle_diff) > FOV * 0.58:
             return None
 
@@ -270,55 +400,92 @@ class PygameSearchGame:
         self.draw_map_ghosts(origin)
         self.draw_lesson_panel(snapshot, left, origin[1] + self.map_height + 24)
 
-    def draw_search_layers(self, snapshot: SearchSnapshot, origin: tuple[int, int]) -> None:
+    def draw_classic_maze(self, snapshot: SearchSnapshot) -> None:
+        maze_width = self.state.maze.width * CLASSIC_CELL
+        maze_height = self.state.maze.height * CLASSIC_CELL
+        origin = ((self.view_width - maze_width) // 2, 0)
+        pygame.draw.rect(self.screen, hex_color("#020617"), (0, 0, self.view_width, self.view_height))
+        pygame.draw.rect(
+            self.screen,
+            hex_color("#050507"),
+            (origin[0] - 10, origin[1] - 10, maze_width + 20, maze_height + 20),
+        )
+        self.draw_map_maze(origin, CLASSIC_CELL)
+        self.draw_search_layers(snapshot, origin, CLASSIC_CELL)
+        self.draw_map_pellets(snapshot, origin, CLASSIC_CELL)
+        self.draw_map_player(origin, CLASSIC_CELL)
+        self.draw_map_ghosts(origin, CLASSIC_CELL)
+        self.draw_text("Modo clasico", 14, 12, self.bold_font, "#f8fafc")
+
+    def draw_classic_lesson_panel(self, snapshot: SearchSnapshot) -> None:
+        left = self.view_width
+        pygame.draw.rect(self.screen, hex_color("#0f172a"), (left, 0, PANEL_WIDTH, self.view_height + HUD_HEIGHT))
+        self.draw_text("Dijkstra paso a paso", left + 16, 16, self.title_font, "#f8fafc")
+        self.draw_lesson_panel(snapshot, left, 58)
+
+    def draw_search_layers(self, snapshot: SearchSnapshot, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         if self.show_hint:
-            self.draw_map_cells(snapshot.player_hint.explored, "#143642", 3, origin)
-            self.draw_map_cells(snapshot.player_hint.frontier, "#265f73", 3, origin)
-            self.draw_map_cells(snapshot.player_hint.path[1:], "#2ec4b6", 5, origin)
+            self.draw_map_cells(snapshot.player_hint.explored, "#143642", max(3, cell_size // 5), origin, cell_size)
+            self.draw_map_cells(snapshot.player_hint.frontier, "#265f73", max(3, cell_size // 5), origin, cell_size)
+            self.draw_map_cells(snapshot.player_hint.path[1:], "#2ec4b6", max(5, cell_size // 4), origin, cell_size)
 
         if self.show_ghost_paths:
             for ghost, search in zip(self.state.ghosts, snapshot.ghost_searches):
-                self.draw_map_cells(search.explored - set(search.path), ghost.search_color, 2, origin)
-                self.draw_map_cells(search.frontier, fade(ghost.path_color, 2), 2, origin)
-                self.draw_map_cells(search.path[1:-1], ghost.path_color, 4, origin)
+                self.draw_map_cells(search.explored - set(search.path), ghost.search_color, max(2, cell_size // 7), origin, cell_size)
+                self.draw_map_cells(search.frontier, fade(ghost.path_color, 2), max(2, cell_size // 7), origin, cell_size)
+                self.draw_map_cells(search.path[1:-1], ghost.path_color, max(4, cell_size // 4), origin, cell_size)
+                if len(search.path) > 1:
+                    current = self.map_center(search.path[0], origin, cell_size)
+                    next_step = self.map_center(search.path[1], origin, cell_size)
+                    pygame.draw.line(self.screen, hex_color("#ffffff"), current, next_step, max(2, cell_size // 7))
+                    pygame.draw.circle(self.screen, hex_color("#ffffff"), next_step, max(5, cell_size // 3), 2)
 
         if self.show_tree and snapshot.ghost_searches:
-            self.draw_search_tree(snapshot.ghost_searches[0], self.state.ghosts[0].path_color, origin)
-            self.draw_search_tree(snapshot.player_hint, "#94d2bd", origin, max_edges=32)
+            self.draw_search_tree(snapshot.ghost_searches[0], self.state.ghosts[0].path_color, origin, cell_size)
+            self.draw_search_tree(snapshot.player_hint, "#94d2bd", origin, cell_size, max_edges=32)
 
-    def draw_map_maze(self, origin: tuple[int, int]) -> None:
+    def draw_map_maze(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         for x, y in self.state.maze.walls:
-            rect = pygame.Rect(origin[0] + x * MAP_CELL, origin[1] + y * MAP_CELL, MAP_CELL, MAP_CELL)
+            rect = pygame.Rect(origin[0] + x * cell_size, origin[1] + y * cell_size, cell_size, cell_size)
             pygame.draw.rect(self.screen, hex_color("#1d4ed8"), rect)
             pygame.draw.rect(self.screen, hex_color("#60a5fa"), rect, 1)
 
-    def draw_map_pellets(self, snapshot: SearchSnapshot, origin: tuple[int, int]) -> None:
+    def draw_map_pellets(self, snapshot: SearchSnapshot, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         for pellet in self.state.pellets:
-            center = self.map_center(pellet, origin)
-            pygame.draw.circle(self.screen, hex_color("#f8fafc"), center, 2)
+            center = self.map_center(pellet, origin, cell_size)
+            pygame.draw.circle(self.screen, hex_color("#f8fafc"), center, max(2, cell_size // 8))
             self.draw_pellet_search_rings(center, snapshot.pellet_ghost_colors.get(pellet, []))
         for pellet in self.state.power_pellets:
-            center = self.map_center(pellet, origin)
-            pygame.draw.circle(self.screen, hex_color("#fef08a"), center, 5)
-            self.draw_pellet_search_rings(center, snapshot.pellet_ghost_colors.get(pellet, []), start_radius=8)
+            center = self.map_center(pellet, origin, cell_size)
+            pygame.draw.circle(self.screen, hex_color("#fef08a"), center, max(5, cell_size // 5))
+            self.draw_pellet_search_rings(center, snapshot.pellet_ghost_colors.get(pellet, []), start_radius=max(8, cell_size // 3))
 
     def draw_pellet_search_rings(self, center: tuple[int, int], colors: list[str], start_radius: int = 5) -> None:
         for index, color in enumerate(colors[:4]):
             pygame.draw.circle(self.screen, hex_color(color), center, start_radius + index * 2, 1)
 
-    def draw_map_player(self, origin: tuple[int, int]) -> None:
-        x, y = self.map_center(self.state.player, origin)
-        pygame.draw.circle(self.screen, hex_color("#ffd60a"), (x, y), 7)
-        pygame.draw.circle(self.screen, hex_color("#fff7ad"), (x, y), 7, 2)
-        angle = VIEW_ANGLES[self.state.direction]
-        pygame.draw.line(self.screen, hex_color("#111111"), (x, y), (x + int(math.cos(angle) * 10), y + int(math.sin(angle) * 10)), 2)
+    def draw_map_player(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
+        x, y = self.map_center_float(self.visual_player_pos, origin, cell_size)
+        radius = max(7, cell_size // 3)
+        pygame.draw.circle(self.screen, hex_color("#ffd60a"), (x, y), radius)
+        pygame.draw.circle(self.screen, hex_color("#fff7ad"), (x, y), radius, 2)
+        angle = self.visual_angle
+        pygame.draw.line(
+            self.screen,
+            hex_color("#111111"),
+            (x, y),
+            (x + int(math.cos(angle) * radius * 1.3), y + int(math.sin(angle) * radius * 1.3)),
+            2,
+        )
 
-    def draw_map_ghosts(self, origin: tuple[int, int]) -> None:
-        for ghost in self.state.ghosts:
-            center = self.map_center(ghost.pos, origin)
-            pygame.draw.circle(self.screen, hex_color(ghost.color), center, 6)
-            pygame.draw.circle(self.screen, hex_color("#ffffff"), center, 6, 1)
-            self.draw_text(ghost.algorithm, center[0] + 8, center[1] - 8, self.small_font, "#f8fafc")
+    def draw_map_ghosts(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
+        for index, ghost in enumerate(self.state.ghosts):
+            pos = self.visual_ghost_positions[index] if index < len(self.visual_ghost_positions) else ghost.pos
+            center = self.map_center_float(pos, origin, cell_size)
+            radius = max(6, cell_size // 3)
+            pygame.draw.circle(self.screen, hex_color(ghost.color), center, radius)
+            pygame.draw.circle(self.screen, hex_color("#ffffff"), center, radius, 1)
+            self.draw_text(ghost.algorithm, center[0] + radius + 2, center[1] - radius, self.small_font, "#f8fafc")
 
     def draw_hud(self, snapshot: SearchSnapshot) -> None:
         top = self.view_height
@@ -339,14 +506,15 @@ class PygameSearchGame:
         )
         self.draw_text(
             f"A*: ruta {max(0, len(snapshot.player_hint.path) - 1)} pasos, {len(snapshot.player_hint.explored)} nodos | "
-            f"Fantasmas A*/BFS: {ghost_nodes} nodos",
+            f"Fantasma Dijkstra: {ghost_nodes} nodos",
             12,
             top + 38,
             self.small_font,
             "#cbd5e1",
         )
+        movement = "3D: W/Arriba avanza, A/Izquierda va a tu izquierda, S retrocede, D derecha" if self.mode == "3d" else "Clasico: flechas/WASD mueven segun el laberinto 2D"
         self.draw_text(
-            "Flechas/WASD mover | +/- velocidad | H pista A* | G fantasmas | T arbol | Espacio pausa | R reiniciar",
+            f"{movement} | M cambiar modo | +/- velocidad | H pista | G Dijkstra | T arbol | Espacio pausa | R reiniciar",
             12,
             top + 62,
             self.small_font,
@@ -358,11 +526,12 @@ class PygameSearchGame:
     def draw_lesson_panel(self, snapshot: SearchSnapshot, left: int, top: int) -> None:
         lines = [
             ("Como leerlo", self.title_font, "#f8fafc"),
-            ("A*: verde brillante ruta, verde medio frontera, verde oscuro explorados.", self.small_font, "#cbd5e1"),
-            ("Fantasma A*: rojo fuerte camino, rojo oscuro busqueda.", self.small_font, "#cbd5e1"),
-            ("Fantasma BFS: azul fuerte camino, azul oscuro busqueda.", self.small_font, "#cbd5e1"),
-            ("Aros en dots: color del enemigo que alcanzo ese dot durante la busqueda.", self.small_font, "#cbd5e1"),
-            ("Arbol: cada linea conecta padre -> hijo para reconstruir la ruta.", self.small_font, "#cbd5e1"),
+            ("Jugador: A* en verde sugiere el pellet mas cercano con costo acumulado + distancia estimada.", self.small_font, "#cbd5e1"),
+            ("Fantasma: Dijkstra calcula costos desde su casilla y siempre toma el siguiente paso de la ruta mas barata hacia Pac-Man.", self.small_font, "#cbd5e1"),
+            (self.ghost_decision_text(snapshot), self.small_font, "#f8fafc"),
+            ("Rojo oscuro = casillas que Dijkstra ya cerro. Rojo claro = frontera pendiente. Rojo fuerte = camino elegido.", self.small_font, "#cbd5e1"),
+            ("Las lineas del arbol muestran de que casilla vino cada decision; siguiendo padres se reconstruye la ruta final.", self.small_font, "#cbd5e1"),
+            ("Aros en dots: el fantasma alcanzo ese dot durante su busqueda antes de decidir el siguiente paso.", self.small_font, "#cbd5e1"),
             (f"A* ahora exploro {len(snapshot.player_hint.explored)} nodos.", self.small_font, "#cbd5e1"),
             (
                 " | ".join(
@@ -381,14 +550,42 @@ class PygameSearchGame:
             else:
                 y += 9
 
-    def draw_map_cells(self, cells: list[Pos] | set[Pos], color: str, radius: int, origin: tuple[int, int]) -> None:
-        for pos in cells:
-            pygame.draw.circle(self.screen, hex_color(color), self.map_center(pos, origin), radius)
+    def ghost_decision_text(self, snapshot: SearchSnapshot) -> str:
+        if not snapshot.ghost_searches:
+            return "Dijkstra no tiene una ruta activa."
+        search = snapshot.ghost_searches[0]
+        if len(search.path) <= 1:
+            return "Dijkstra ya esta en el objetivo o no encontro un paso nuevo."
+        return f"Decision actual: ir de {search.path[0]} a {search.path[1]} porque es el menor costo conocido hacia Pac-Man."
 
-    def draw_search_tree(self, result: SearchResult, color: str, origin: tuple[int, int], max_edges: int = 45) -> None:
+    def draw_map_cells(
+        self,
+        cells: list[Pos] | set[Pos],
+        color: str,
+        radius: int,
+        origin: tuple[int, int],
+        cell_size: int = MAP_CELL,
+    ) -> None:
+        for pos in cells:
+            pygame.draw.circle(self.screen, hex_color(color), self.map_center(pos, origin, cell_size), radius)
+
+    def draw_search_tree(
+        self,
+        result: SearchResult,
+        color: str,
+        origin: tuple[int, int],
+        cell_size: int = MAP_CELL,
+        max_edges: int = 45,
+    ) -> None:
         edges = [(child, parent) for child, parent in result.came_from.items() if parent is not None]
         for child, parent in edges[:max_edges]:
-            pygame.draw.line(self.screen, hex_color(color), self.map_center(parent, origin), self.map_center(child, origin), 1)
+            pygame.draw.line(
+                self.screen,
+                hex_color(color),
+                self.map_center(parent, origin, cell_size),
+                self.map_center(child, origin, cell_size),
+                1,
+            )
 
     def draw_text(
         self,
@@ -424,10 +621,21 @@ class PygameSearchGame:
             y += font.get_linesize()
         return y
 
-    def map_center(self, pos: Pos, origin: tuple[int, int]) -> tuple[int, int]:
-        return (origin[0] + pos[0] * MAP_CELL + MAP_CELL // 2, origin[1] + pos[1] * MAP_CELL + MAP_CELL // 2)
+    def map_center(self, pos: Pos, origin: tuple[int, int], cell_size: int = MAP_CELL) -> tuple[int, int]:
+        return (origin[0] + pos[0] * cell_size + cell_size // 2, origin[1] + pos[1] * cell_size + cell_size // 2)
+
+    def map_center_float(
+        self,
+        pos: tuple[float, float],
+        origin: tuple[int, int],
+        cell_size: int = MAP_CELL,
+    ) -> tuple[int, int]:
+        return (int(origin[0] + pos[0] * cell_size + cell_size / 2), int(origin[1] + pos[1] * cell_size + cell_size / 2))
 
     def shortest_delta_to(self, pos: Pos) -> tuple[float, float]:
+        return self.shortest_delta_to_float((float(pos[0]), float(pos[1])))
+
+    def shortest_delta_to_float(self, pos: tuple[float, float]) -> tuple[float, float]:
         origin_x = self.visual_player_pos[0] + 0.5
         origin_y = self.visual_player_pos[1] + 0.5
         target_x = pos[0] + 0.5
@@ -439,6 +647,10 @@ class PygameSearchGame:
 
     def sprite_distance(self, pos: Pos) -> float:
         dx, dy = self.shortest_delta_to(pos)
+        return math.hypot(dx, dy)
+
+    def sprite_distance_float(self, pos: tuple[float, float]) -> float:
+        dx, dy = self.shortest_delta_to_float(pos)
         return math.hypot(dx, dy)
 
 
