@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from doom_search.algorithms import SearchResult, a_star_to_nearest_goal, bfs
+from doom_search.algorithms import SearchResult, a_star, a_star_to_nearest_goal, bfs
 from doom_search.colors import sum_colors
 from doom_search.entities import Direction, Ghost, Pos
 from doom_search.level import DEFAULT_MAZE, Maze
@@ -41,10 +41,8 @@ class GameState:
         self.power_pellets = set(self.maze.power_pellets)
         self.player = self.maze.player_start
         self.ghosts = [
-            Ghost((9, 3), "#ff4d6d", "Rojo", (9, 3)),
-            Ghost((11, 3), "#4cc9f0", "Azul", (11, 3)),
-            Ghost((9, 11), "#f8961e", "Naranja", (9, 11)),
-            Ghost((11, 11), "#b5179e", "Rosa", (11, 11)),
+            Ghost((9, 3), "#ff4d6d", "A*", (9, 3), "A*", "#5b1f2d", "#ff4d6d"),
+            Ghost((11, 11), "#4cc9f0", "BFS", (11, 11), "BFS", "#183f4d", "#4cc9f0"),
         ]
         self.direction = "Left"
         self.next_direction = "Left"
@@ -89,7 +87,7 @@ class GameState:
         reserved = {ghost.pos for ghost in self.ghosts}
         for ghost in self.ghosts:
             reserved.discard(ghost.pos)
-            result = self.bfs(ghost.pos, self.player)
+            result = self.ghost_search(ghost)
             candidates = [result.path[1]] if len(result.path) > 1 else []
             candidates.extend(neighbor for neighbor in self.maze.neighbors(ghost.pos) if neighbor not in candidates)
             ghost.pos = self.choose_ghost_step(ghost.pos, candidates, reserved)
@@ -118,12 +116,20 @@ class GameState:
     def bfs(self, start: Pos, goal: Pos) -> SearchResult:
         return bfs(start, goal, self.maze.neighbors)
 
+    def a_star(self, start: Pos, goal: Pos) -> SearchResult:
+        return a_star(start, goal, self.maze.neighbors)
+
+    def ghost_search(self, ghost: Ghost) -> SearchResult:
+        if ghost.algorithm == "A*":
+            return self.a_star(ghost.pos, self.player)
+        return self.bfs(ghost.pos, self.player)
+
     def player_hint(self) -> SearchResult:
         return a_star_to_nearest_goal(self.player, self.pellets | self.power_pellets, self.maze.neighbors)
 
     def search_snapshot(self) -> SearchSnapshot:
         player_hint = self.player_hint()
-        ghost_searches = [self.bfs(ghost.pos, self.player) for ghost in self.ghosts]
+        ghost_searches = [self.ghost_search(ghost) for ghost in self.ghosts]
         pellet_colors = self.searched_pellet_colors(ghost_searches)
         pellet_ghost_colors = self.searched_pellet_color_parts(ghost_searches)
         return SearchSnapshot(player_hint, ghost_searches, pellet_colors, pellet_ghost_colors)

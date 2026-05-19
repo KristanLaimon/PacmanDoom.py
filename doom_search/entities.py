@@ -5,6 +5,7 @@ from typing import Literal
 
 Pos = tuple[int, int]
 Direction = Literal["Up", "Down", "Left", "Right"]
+SearchAlgorithm = Literal["A*", "BFS"]
 
 
 @dataclass
@@ -13,3 +14,6 @@ class Ghost:
     color: str
     name: str
     start: Pos
+    algorithm: SearchAlgorithm
+    search_color: str
+    path_color: str

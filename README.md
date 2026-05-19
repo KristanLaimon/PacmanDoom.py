@@ -3,7 +3,7 @@
 Juego de laberinto tipo DOOM hecho con Python y pygame. La izquierda muestra una vista 3D con raycasting y la derecha muestra el mapa de busqueda en tiempo real:
 
 - A* calcula una ruta sugerida desde el jugador hasta el pellet mas cercano.
-- BFS calcula las rutas de persecucion de los enemigos hacia el jugador.
+- Hay dos fantasmas: uno persigue con A* y otro con BFS.
 - El panel lateral muestra nodos explorados, frontera y arbol de decision.
 - Los dots mantienen su color base y muestran aros con el color del enemigo que los alcanzo durante la busqueda.
 - `+` y `-` cambian la velocidad en medio del juego.
