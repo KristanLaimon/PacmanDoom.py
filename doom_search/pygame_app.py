@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 import pygame
 
@@ -21,6 +22,7 @@ SMOOTH_VIEW_FPS = 60
 FOV = math.radians(68)
 MAX_VIEW_DISTANCE = 16.0
 RAY_STEP = 4
+ASSET_DIR = Path(__file__).resolve().parent.parent / "assets"
 
 VIEW_ANGLES = {
     "Right": 0.0,
@@ -46,6 +48,8 @@ class PygameSearchGame:
         self.small_font = pygame.font.SysFont("Segoe UI", 13)
         self.bold_font = pygame.font.SysFont("Segoe UI", 17, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 22, bold=True)
+        self.sprites = self.load_sprites()
+        self.scaled_sprites: dict[tuple[str, int, int], pygame.Surface] = {}
 
         self.show_hint = True
         self.show_ghost_paths = True
@@ -67,6 +71,43 @@ class PygameSearchGame:
         self.visual_angle_end = self.visual_angle
         self.visual_turn_start = self.last_tick
         self.visual_turn_duration = self.tick_ms
+
+    def load_sprites(self) -> dict[str, pygame.Surface]:
+        names = {
+            "pac_up": "pac_up.gif",
+            "pac_down": "pac_down.gif",
+            "pac_left": "pac_left.gif",
+            "pac_right": "pac_right.gif",
+            "pac_death": "pac_death.gif",
+            "ghost_up": "ghost_up.gif",
+            "ghost_down": "ghost_down.gif",
+            "ghost_left": "ghost_left.gif",
+            "ghost_right": "ghost_right.gif",
+            "ghost_blue": "ghost_blue.gif",
+            "ghost_white": "ghost_white.gif",
+        }
+        sprites: dict[str, pygame.Surface] = {}
+        for key, filename in names.items():
+            path = ASSET_DIR / filename
+            if path.exists():
+                sprites[key] = pygame.image.load(str(path)).convert_alpha()
+        return sprites
+
+    def scaled_sprite(self, key: str, width: int, height: int | None = None) -> pygame.Surface | None:
+        if key not in self.sprites:
+            return None
+        height = width if height is None else height
+        cache_key = (key, width, height)
+        if cache_key not in self.scaled_sprites:
+            self.scaled_sprites[cache_key] = pygame.transform.scale(self.sprites[key], (width, height))
+        return self.scaled_sprites[cache_key]
+
+    def draw_sprite(self, key: str, rect: pygame.Rect) -> bool:
+        sprite = self.scaled_sprite(key, rect.width, rect.height)
+        if sprite is None:
+            return False
+        self.screen.blit(sprite, rect)
+        return True
 
     def run(self) -> None:
         running = True
@@ -324,16 +365,16 @@ class PygameSearchGame:
         return MAX_VIEW_DISTANCE, "x"
 
     def draw_visible_sprites(self) -> None:
-        sprites: list[tuple[float, Pos, str, str]] = []
+        sprites: list[tuple[float, tuple[float, float], str, str, str]] = []
         for pellet in self.state.pellets:
-            sprites.append((self.sprite_distance(pellet), pellet, "#f8fafc", "pellet"))
+            sprites.append((self.sprite_distance(pellet), (float(pellet[0]), float(pellet[1])), "#f8fafc", "pellet", ""))
         for pellet in self.state.power_pellets:
-            sprites.append((self.sprite_distance(pellet), pellet, "#fef08a", "power"))
+            sprites.append((self.sprite_distance(pellet), (float(pellet[0]), float(pellet[1])), "#fef08a", "power", ""))
         for index, ghost in enumerate(self.state.ghosts):
             pos = self.visual_ghost_positions[index] if index < len(self.visual_ghost_positions) else ghost.pos
-            sprites.append((self.sprite_distance_float(pos), pos, ghost.color, "enemy"))
+            sprites.append((self.sprite_distance_float(pos), pos, ghost.color, "enemy", self.ghost_sprite_key(index)))
 
-        for _, pos, color, kind in sorted(sprites, reverse=True):
+        for _, pos, color, kind, image_key in sorted(sprites, reverse=True):
             projection = self.project_sprite_float(pos)
             if projection is None:
                 continue
@@ -342,8 +383,9 @@ class PygameSearchGame:
                 size = int(max(22, min(120, self.view_height / depth * 0.42)))
                 rect = pygame.Rect(0, 0, size, int(size * 1.15))
                 rect.midbottom = (screen_x, self.view_height - 34)
-                pygame.draw.ellipse(self.screen, hex_color(color), rect)
-                pygame.draw.ellipse(self.screen, hex_color("#ffffff"), rect, 2)
+                if not self.draw_sprite(image_key, rect):
+                    pygame.draw.ellipse(self.screen, hex_color(color), rect)
+                    pygame.draw.ellipse(self.screen, hex_color("#ffffff"), rect, 2)
             else:
                 scale = 0.055 if kind == "pellet" else 0.09
                 radius = int(max(4, min(18, self.view_height / depth * scale)))
@@ -466,26 +508,52 @@ class PygameSearchGame:
 
     def draw_map_player(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         x, y = self.map_center_float(self.visual_player_pos, origin, cell_size)
-        radius = max(7, cell_size // 3)
-        pygame.draw.circle(self.screen, hex_color("#ffd60a"), (x, y), radius)
-        pygame.draw.circle(self.screen, hex_color("#fff7ad"), (x, y), radius, 2)
-        angle = self.visual_angle
-        pygame.draw.line(
-            self.screen,
-            hex_color("#111111"),
-            (x, y),
-            (x + int(math.cos(angle) * radius * 1.3), y + int(math.sin(angle) * radius * 1.3)),
-            2,
-        )
+        size = max(16, int(cell_size * 0.88))
+        rect = pygame.Rect(0, 0, size, size)
+        rect.center = (x, y)
+        sprite_key = f"pac_{self.direction_from_angle(self.visual_angle).lower()}"
+        drew_sprite = self.draw_sprite(sprite_key, rect)
+        if not drew_sprite:
+            radius = max(7, cell_size // 3)
+            pygame.draw.circle(self.screen, hex_color("#ffd60a"), (x, y), radius)
+            pygame.draw.circle(self.screen, hex_color("#fff7ad"), (x, y), radius, 2)
+            angle = self.visual_angle
+            pygame.draw.line(
+                self.screen,
+                hex_color("#111111"),
+                (x, y),
+                (x + int(math.cos(angle) * radius * 1.3), y + int(math.sin(angle) * radius * 1.3)),
+                2,
+            )
 
     def draw_map_ghosts(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         for index, ghost in enumerate(self.state.ghosts):
             pos = self.visual_ghost_positions[index] if index < len(self.visual_ghost_positions) else ghost.pos
             center = self.map_center_float(pos, origin, cell_size)
-            radius = max(6, cell_size // 3)
-            pygame.draw.circle(self.screen, hex_color(ghost.color), center, radius)
-            pygame.draw.circle(self.screen, hex_color("#ffffff"), center, radius, 1)
+            size = max(15, int(cell_size * 0.9))
+            rect = pygame.Rect(0, 0, size, size)
+            rect.center = center
+            if not self.draw_sprite(self.ghost_sprite_key(index), rect):
+                radius = max(6, cell_size // 3)
+                pygame.draw.circle(self.screen, hex_color(ghost.color), center, radius)
+                pygame.draw.circle(self.screen, hex_color("#ffffff"), center, radius, 1)
+            radius = max(6, size // 2)
             self.draw_text(ghost.algorithm, center[0] + radius + 2, center[1] - radius, self.small_font, "#f8fafc")
+
+    def ghost_sprite_key(self, index: int) -> str:
+        if index >= len(self.visual_ghost_starts) or index >= len(self.visual_ghost_ends):
+            return "ghost_right"
+        start = self.visual_ghost_starts[index]
+        end = self.visual_ghost_ends[index]
+        dx = end[0] - start[0]
+        dy = end[1] - start[1]
+        if abs(dx) > self.state.maze.width / 2:
+            dx = -math.copysign(1.0, dx)
+        if abs(dx) >= abs(dy) and abs(dx) > 0.01:
+            return "ghost_right" if dx > 0 else "ghost_left"
+        if abs(dy) > 0.01:
+            return "ghost_down" if dy > 0 else "ghost_up"
+        return "ghost_right"
 
     def draw_hud(self, snapshot: SearchSnapshot) -> None:
         top = self.view_height
