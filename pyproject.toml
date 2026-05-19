@@ -1,0 +1,9 @@
+[project]
+name = "pacman-search"
+version = "0.1.0"
+description = "Pac-Man with visible search algorithms using Tkinter."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.uv]
+package = false
