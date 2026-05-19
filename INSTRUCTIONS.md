@@ -5,12 +5,15 @@
 # Requerimientos no funcionales:
 
 - No se puede utilizar UNITY ni UNREAL ENGINE
-- Utiliza python con tkinter
+- No utilices tkinter, utiliza pygame
 - No tengo python instalado, utilizo `uv`.
 
 # Requerimientos funcionales:
 
-- El juego tiene que ser PACMAN
+- El juego tiene que ser como un DOOM.
+- Habrán 2 ventanas, 1 en donde esté el jugador jugando
+- en la 2nda, se verá un mapa del juego y los enemigos, en donde se verán las rutas y el cómo encuentran por dónde ir usando un algoritmo de búsqueda en tiempo real con colores y esas cosas. 
+- 
 
 No estoy seguro de qué algoritmo mejor utilizar para esto, está a tu libre elección.
 

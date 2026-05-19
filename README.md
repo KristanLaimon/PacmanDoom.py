@@ -4,6 +4,9 @@ Juego de Pac-Man hecho con Python y Tkinter. La GUI muestra dos algoritmos de bu
 
 - A* calcula una ruta sugerida desde Pac-Man hasta el pellet mas cercano.
 - BFS calcula las rutas de persecucion de los fantasmas hacia Pac-Man.
+- El panel lateral muestra nodos explorados, frontera y arbol de decision.
+- Los dots se pintan con el color del fantasma que los esta buscando; si varios buscan el mismo dot, se suma el color.
+- El slider inferior cambia la velocidad en medio del juego.
 
 ## Ejecutar
 
@@ -22,5 +25,6 @@ En Windows tambien puedes usar el script incluido, que deja el cache, el Python 
 - Flechas o `WASD`: mover a Pac-Man.
 - `H`: mostrar u ocultar la ruta sugerida por A*.
 - `G`: mostrar u ocultar las rutas BFS de los fantasmas.
+- `T`: mostrar u ocultar lineas del arbol de decision.
 - `Espacio`: pausar o continuar.
 - `R`: reiniciar.
