@@ -1,0 +1,6 @@
+.venv/
+.venv-game/
+.uv-cache/
+.uv-python/
+__pycache__/
+*.py[cod]

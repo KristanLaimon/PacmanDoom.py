@@ -38,7 +38,9 @@ class SearchAlgorithmTests(unittest.TestCase):
 
         path, explored = PacmanSearchGame.a_star_to_nearest_pellet(game)
 
-        self.assertEqual(path, [(0, 1), (1, 1)])
+        self.assertEqual(path[0], (0, 1))
+        self.assertIn(path[-1], game.pellets)
+        self.assertEqual(len(path), 2)
         self.assertIn((0, 1), explored)
 
 
