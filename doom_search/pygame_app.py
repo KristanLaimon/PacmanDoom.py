@@ -60,7 +60,7 @@ class PygameSearchGame:
         self.show_hint = True
         self.show_ghost_paths = True
         self.show_tree = True
-        self.lighting_enabled = True
+        self.lighting_enabled = False
         self.mode = "classic"
         self.tick_ms = DEFAULT_TICK_MS
         self.last_tick = pygame.time.get_ticks()
@@ -332,7 +332,8 @@ class PygameSearchGame:
         return ANGLE_DIRECTIONS[(facing_index + offsets[key]) % len(ANGLE_DIRECTIONS)]
 
     def relative_look_direction(self, key: int) -> Direction:
-        facing_index = ANGLE_DIRECTIONS.index(self.movement_direction)
+        facing = self.direction_from_angle(self.visual_angle_end)
+        facing_index = ANGLE_DIRECTIONS.index(facing)
         offsets = {
             pygame.K_w: 0,
             pygame.K_d: 1,
@@ -943,7 +944,7 @@ class PygameSearchGame:
             "#cbd5e1",
         )
         movement = (
-            "3D: flechas mueven relativo a la mirada, WASD mira N/O/S/E"
+            "3D: flechas mueven y recentran la camara, WASD gira la mirada"
             if self.mode == "3d"
             else "Clasico: flechas/WASD mueven segun el laberinto 2D"
         )
