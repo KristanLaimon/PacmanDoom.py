@@ -2,38 +2,12 @@ from __future__ import annotations
 
 import unittest
 
-from pacman_search import Ghost, MAZE, PacmanSearchGame, SearchResult
+from doom_search import Ghost, MAZE, GameState, Maze, SearchResult, a_star_to_nearest_goal, bfs
+from doom_search.colors import sum_colors
 
 
-def build_headless_game() -> PacmanSearchGame:
-    game = PacmanSearchGame.__new__(PacmanSearchGame)
-    game.width = len(MAZE[0])
-    game.height = len(MAZE)
-    game.walls = {
-        (x, y)
-        for y, row in enumerate(MAZE)
-        for x, char in enumerate(row)
-        if char == "#"
-    }
-    game.pellets = {
-        (x, y)
-        for y, row in enumerate(MAZE)
-        for x, char in enumerate(row)
-        if char == "."
-    }
-    game.power_pellets = {
-        (x, y)
-        for y, row in enumerate(MAZE)
-        for x, char in enumerate(row)
-        if char == "o"
-    }
-    game.pacman = next(
-        (x, y)
-        for y, row in enumerate(MAZE)
-        for x, char in enumerate(row)
-        if char == "P"
-    )
-    return game
+def build_headless_game() -> GameState:
+    return GameState(Maze.from_rows(MAZE))
 
 
 class SearchAlgorithmTests(unittest.TestCase):
@@ -44,25 +18,19 @@ class SearchAlgorithmTests(unittest.TestCase):
     def test_bfs_finds_path_around_wall(self) -> None:
         game = build_headless_game()
 
-        result = PacmanSearchGame.bfs(game, (1, 1), (9, 1))
+        result = bfs((1, 1), (9, 1), game.maze.neighbors)
 
         self.assertEqual(result.path[0], (1, 1))
         self.assertEqual(result.path[-1], (9, 1))
-        self.assertTrue(all(pos not in game.walls for pos in result.path))
+        self.assertTrue(all(pos not in game.maze.walls for pos in result.path))
 
     def test_a_star_targets_nearest_pellet(self) -> None:
-        game = PacmanSearchGame.__new__(PacmanSearchGame)
-        game.width = 5
-        game.height = 3
-        game.walls = set()
-        game.pacman = (0, 1)
-        game.pellets = {(4, 1), (1, 1)}
-        game.power_pellets = set()
+        maze = Maze.from_rows(["     ", "P. . ", "     "])
 
-        result = PacmanSearchGame.a_star_to_nearest_pellet(game)
+        result = a_star_to_nearest_goal(maze.player_start, set(maze.pellets), maze.neighbors)
 
         self.assertEqual(result.path[0], (0, 1))
-        self.assertIn(result.path[-1], game.pellets)
+        self.assertIn(result.path[-1], maze.pellets)
         self.assertEqual(len(result.path), 2)
         self.assertIn((0, 1), result.explored)
 
@@ -72,7 +40,7 @@ class SearchAlgorithmTests(unittest.TestCase):
 
         for target in targets:
             with self.subTest(target=target):
-                result = PacmanSearchGame.bfs(game, game.pacman, target)
+                result = game.bfs(game.player, target)
                 self.assertEqual(result.path[-1], target)
 
     def test_level_has_no_single_exit_dead_ends(self) -> None:
@@ -86,17 +54,15 @@ class SearchAlgorithmTests(unittest.TestCase):
 
         for cell in open_cells:
             with self.subTest(cell=cell):
-                self.assertGreaterEqual(len(PacmanSearchGame.neighbors(game, cell)), 2)
+                self.assertGreaterEqual(len(game.maze.neighbors(cell)), 2)
 
     def test_color_sum_clamps_channels(self) -> None:
-        game = PacmanSearchGame.__new__(PacmanSearchGame)
-
-        color = PacmanSearchGame.sum_colors(game, ["#ff4d6d", "#4cc9f0"])
+        color = sum_colors(["#ff4d6d", "#4cc9f0"])
 
         self.assertEqual(color, "#ffffff")
 
     def test_pellets_use_sum_of_searching_ghost_colors(self) -> None:
-        game = PacmanSearchGame.__new__(PacmanSearchGame)
+        game = GameState(Maze.from_rows(["#####", "#P..#", "#####"]))
         game.pellets = {(2, 1), (3, 1)}
         game.power_pellets = set()
         game.ghosts = [
@@ -108,7 +74,7 @@ class SearchAlgorithmTests(unittest.TestCase):
             SearchResult(path=[(4, 1), (3, 1), (2, 1)], explored={(4, 1), (3, 1)}, came_from={}, frontier={(2, 1)}),
         ]
 
-        colors = PacmanSearchGame.searched_pellet_colors(game, searches)
+        colors = game.searched_pellet_colors(searches)
 
         self.assertEqual(colors[(2, 1)], "#102000")
         self.assertEqual(colors[(3, 1)], "#002000")

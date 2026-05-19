@@ -1,9 +1,11 @@
 [project]
-name = "pacman-search"
+name = "doom-search"
 version = "0.1.0"
-description = "Pac-Man with visible search algorithms using Tkinter."
-requires-python = ">=3.11"
-dependencies = []
+description = "DOOM-style maze game with visible A* and BFS search using pygame."
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "pygame>=2.6.1",
+]
 
 [tool.uv]
 package = false
