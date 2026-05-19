@@ -23,6 +23,9 @@ FOV = math.radians(68)
 MAX_VIEW_DISTANCE = 16.0
 RAY_STEP = 4
 ASSET_DIR = Path(__file__).resolve().parent.parent / "assets"
+FRAME_DIR = ASSET_DIR / "frames"
+ANIMATION_MS = 90
+GHOST_ANIMATION_MS = 140
 
 VIEW_ANGLES = {
     "Right": 0.0,
@@ -49,7 +52,7 @@ class PygameSearchGame:
         self.bold_font = pygame.font.SysFont("Segoe UI", 17, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 22, bold=True)
         self.sprites = self.load_sprites()
-        self.scaled_sprites: dict[tuple[str, int, int], pygame.Surface] = {}
+        self.scaled_sprites: dict[tuple[str, int, int, int], pygame.Surface] = {}
 
         self.show_hint = True
         self.show_ghost_paths = True
@@ -72,7 +75,7 @@ class PygameSearchGame:
         self.visual_turn_start = self.last_tick
         self.visual_turn_duration = self.tick_ms
 
-    def load_sprites(self) -> dict[str, pygame.Surface]:
+    def load_sprites(self) -> dict[str, list[pygame.Surface]]:
         names = {
             "pac_up": "pac_up.gif",
             "pac_down": "pac_down.gif",
@@ -86,21 +89,42 @@ class PygameSearchGame:
             "ghost_blue": "ghost_blue.gif",
             "ghost_white": "ghost_white.gif",
         }
-        sprites: dict[str, pygame.Surface] = {}
+        sprites: dict[str, list[pygame.Surface]] = {}
         for key, filename in names.items():
+            frames = self.load_sprite_frames(key)
+            if frames:
+                sprites[key] = frames
+                continue
             path = ASSET_DIR / filename
             if path.exists():
-                sprites[key] = pygame.image.load(str(path)).convert_alpha()
+                sprites[key] = [pygame.image.load(str(path)).convert_alpha()]
         return sprites
+
+    def load_sprite_frames(self, key: str) -> list[pygame.Surface]:
+        frame_path = FRAME_DIR / key
+        if not frame_path.exists():
+            return []
+        return [
+            pygame.image.load(str(path)).convert_alpha()
+            for path in sorted(frame_path.glob("*.png"))
+        ]
 
     def scaled_sprite(self, key: str, width: int, height: int | None = None) -> pygame.Surface | None:
         if key not in self.sprites:
             return None
         height = width if height is None else height
-        cache_key = (key, width, height)
+        frame = self.current_frame_index(key)
+        cache_key = (key, frame, width, height)
         if cache_key not in self.scaled_sprites:
-            self.scaled_sprites[cache_key] = pygame.transform.scale(self.sprites[key], (width, height))
+            self.scaled_sprites[cache_key] = pygame.transform.scale(self.sprites[key][frame], (width, height))
         return self.scaled_sprites[cache_key]
+
+    def current_frame_index(self, key: str) -> int:
+        frames = self.sprites.get(key, [])
+        if len(frames) <= 1:
+            return 0
+        frame_ms = GHOST_ANIMATION_MS if key.startswith("ghost_") else ANIMATION_MS
+        return (pygame.time.get_ticks() // frame_ms) % len(frames)
 
     def draw_sprite(self, key: str, rect: pygame.Rect) -> bool:
         sprite = self.scaled_sprite(key, rect.width, rect.height)
@@ -319,11 +343,11 @@ class PygameSearchGame:
     def draw_sky_and_floor(self) -> None:
         horizon = self.view_height // 2
         for y in range(horizon):
-            shade = int(14 + 34 * (y / max(1, horizon)))
-            pygame.draw.line(self.screen, (shade // 2, shade, shade + 18), (0, y), (self.view_width, y))
+            shade = int(4 + 20 * (y / max(1, horizon)))
+            pygame.draw.line(self.screen, (shade // 2, shade, shade + 8), (0, y), (self.view_width, y))
         for y in range(horizon, self.view_height):
-            shade = int(42 - 24 * ((y - horizon) / max(1, horizon)))
-            pygame.draw.line(self.screen, (shade + 14, shade, max(12, shade - 8)), (0, y), (self.view_width, y))
+            shade = int(24 - 18 * ((y - horizon) / max(1, horizon)))
+            pygame.draw.line(self.screen, (shade + 5, shade, max(4, shade - 8)), (0, y), (self.view_width, y))
 
     def draw_raycast_walls(self) -> None:
         view_angle = self.visual_angle
@@ -334,11 +358,20 @@ class PygameSearchGame:
             wall_height = min(self.view_height * 1.8, self.view_height / corrected)
             top = int((self.view_height - wall_height) / 2)
             rect = pygame.Rect(x, top, RAY_STEP + 1, int(wall_height))
-            shade = max(42, min(210, int(220 - corrected * 23)))
+            shade = max(10, min(205, int(230 / (1.0 + corrected * 0.38))))
             color = (shade // 3, shade // 2, shade)
             if hit_axis == "y":
                 color = (max(25, color[0] - 16), max(25, color[1] - 16), max(50, color[2] - 12))
             pygame.draw.rect(self.screen, color, rect)
+        self.draw_view_darkness()
+
+    def draw_view_darkness(self) -> None:
+        overlay = pygame.Surface((self.view_width, self.view_height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 70))
+        center = (self.view_width // 2, self.view_height // 2)
+        for radius, amount in ((320, 18), (235, 22), (165, 30), (92, 48)):
+            self.subtract_alpha_circle(overlay, center, radius, amount)
+        self.screen.blit(overlay, (0, 0))
 
     def cast_ray(self, angle: float) -> tuple[float, str]:
         origin_x = self.visual_player_pos[0] + 0.5
@@ -440,6 +473,7 @@ class PygameSearchGame:
         self.draw_map_pellets(snapshot, origin)
         self.draw_map_player(origin)
         self.draw_map_ghosts(origin)
+        self.draw_map_light(origin)
         self.draw_lesson_panel(snapshot, left, origin[1] + self.map_height + 24)
 
     def draw_classic_maze(self, snapshot: SearchSnapshot) -> None:
@@ -457,6 +491,7 @@ class PygameSearchGame:
         self.draw_map_pellets(snapshot, origin, CLASSIC_CELL)
         self.draw_map_player(origin, CLASSIC_CELL)
         self.draw_map_ghosts(origin, CLASSIC_CELL)
+        self.draw_map_light(origin, CLASSIC_CELL)
         self.draw_text("Modo clasico", 14, 12, self.bold_font, "#f8fafc")
 
     def draw_classic_lesson_panel(self, snapshot: SearchSnapshot) -> None:
@@ -539,6 +574,72 @@ class PygameSearchGame:
                 pygame.draw.circle(self.screen, hex_color("#ffffff"), center, radius, 1)
             radius = max(6, size // 2)
             self.draw_text(ghost.algorithm, center[0] + radius + 2, center[1] - radius, self.small_font, "#f8fafc")
+
+    def draw_map_light(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
+        width = self.state.maze.width * cell_size
+        height = self.state.maze.height * cell_size
+        overlay = pygame.Surface((width, height), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 218))
+        center = self.map_center_float(self.visual_player_pos, (0, 0), cell_size)
+        polygon = self.light_polygon(center, cell_size)
+        if len(polygon) >= 3:
+            light_cut = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.polygon(light_cut, (0, 0, 0, 132), polygon)
+            overlay.blit(light_cut, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        for radius, amount in (
+            (cell_size * 7, 28),
+            (cell_size * 5, 34),
+            (cell_size * 4, 44),
+            (cell_size * 3, 58),
+            (cell_size * 2, 78),
+            (cell_size, 100),
+        ):
+            self.subtract_alpha_circle(overlay, center, radius, amount)
+        self.screen.blit(overlay, origin)
+
+    def subtract_alpha_circle(
+        self,
+        overlay: pygame.Surface,
+        center: tuple[int, int],
+        radius: int,
+        amount: int,
+    ) -> None:
+        light_cut = pygame.Surface(overlay.get_size(), pygame.SRCALPHA)
+        pygame.draw.circle(light_cut, (0, 0, 0, amount), center, radius)
+        overlay.blit(light_cut, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+
+    def light_polygon(self, center: tuple[int, int], cell_size: int) -> list[tuple[int, int]]:
+        points: list[tuple[int, int]] = []
+        max_distance = cell_size * 8.5
+        for step in range(96):
+            angle = math.tau * step / 96
+            points.append(self.cast_light_pixel(center, angle, max_distance, cell_size))
+        return points
+
+    def cast_light_pixel(
+        self,
+        center: tuple[int, int],
+        angle: float,
+        max_distance: float,
+        cell_size: int,
+    ) -> tuple[int, int]:
+        ray_x, ray_y = float(center[0]), float(center[1])
+        step_x = math.cos(angle) * max(2.0, cell_size / 7)
+        step_y = math.sin(angle) * max(2.0, cell_size / 7)
+        traveled = 0.0
+        while traveled < max_distance:
+            ray_x += step_x
+            ray_y += step_y
+            traveled += math.hypot(step_x, step_y)
+            cell = (int(ray_x // cell_size), int(ray_y // cell_size))
+            if cell[1] < 0 or cell[1] >= self.state.maze.height:
+                break
+            cell = (cell[0] % self.state.maze.width, cell[1])
+            if cell in self.state.maze.walls:
+                break
+        width = self.state.maze.width * cell_size
+        height = self.state.maze.height * cell_size
+        return (max(0, min(width - 1, int(ray_x))), max(0, min(height - 1, int(ray_y))))
 
     def ghost_sprite_key(self, index: int) -> str:
         if index >= len(self.visual_ghost_starts) or index >= len(self.visual_ghost_ends):

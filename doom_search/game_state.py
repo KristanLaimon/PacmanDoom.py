@@ -32,6 +32,7 @@ class GameState:
     paused: bool = False
     game_over: bool = False
     win: bool = False
+    ghost_rest_turns: list[int] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.reset()
@@ -43,6 +44,7 @@ class GameState:
         self.ghosts = [
             Ghost((9, 3), "#ff4d6d", "Dijkstra", (9, 3), "Dijkstra", "#5b1f2d", "#ff4d6d"),
         ]
+        self.ghost_rest_turns = [0 for _ in self.ghosts]
         self.direction = "Left"
         self.next_direction = "Left"
         self.score = 0
@@ -84,13 +86,27 @@ class GameState:
 
     def move_ghosts(self) -> None:
         reserved = {ghost.pos for ghost in self.ghosts}
-        for ghost in self.ghosts:
+        for index, ghost in enumerate(self.ghosts):
             reserved.discard(ghost.pos)
+            if self.should_rest_ghost(index):
+                reserved.add(ghost.pos)
+                continue
             result = self.ghost_search(ghost)
             candidates = [result.path[1]] if len(result.path) > 1 else []
             candidates.extend(neighbor for neighbor in self.maze.neighbors(ghost.pos) if neighbor not in candidates)
             ghost.pos = self.choose_ghost_step(ghost.pos, candidates, reserved)
             reserved.add(ghost.pos)
+
+    def should_rest_ghost(self, index: int) -> bool:
+        if index >= len(self.ghost_rest_turns):
+            self.ghost_rest_turns.append(0)
+        if self.ghost_rest_turns[index] > 0:
+            self.ghost_rest_turns[index] -= 1
+            return True
+        if random.random() < 0.32:
+            self.ghost_rest_turns[index] = random.choice([0, 1])
+            return True
+        return False
 
     def choose_ghost_step(self, current: Pos, candidates: Iterable[Pos], reserved: set[Pos]) -> Pos:
         for candidate in candidates:
