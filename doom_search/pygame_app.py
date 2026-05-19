@@ -57,10 +57,12 @@ class PygameSearchGame:
         self.show_hint = True
         self.show_ghost_paths = True
         self.show_tree = True
+        self.lighting_enabled = True
         self.mode = "classic"
         self.tick_ms = DEFAULT_TICK_MS
         self.last_tick = pygame.time.get_ticks()
         self.mode_button_rect = pygame.Rect(0, 0, 0, 0)
+        self.light_button_rect = pygame.Rect(0, 0, 0, 0)
         self.visual_player_start = (float(self.state.player[0]), float(self.state.player[1]))
         self.visual_player_end = self.visual_player_start
         self.visual_player_pos = self.visual_player_start
@@ -258,6 +260,8 @@ class PygameSearchGame:
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if self.mode_button_rect.collidepoint(event.pos):
                     self.toggle_mode()
+                elif self.light_button_rect.collidepoint(event.pos):
+                    self.lighting_enabled = not self.lighting_enabled
             if event.type == pygame.KEYDOWN:
                 self.handle_key(event)
         return True
@@ -276,6 +280,8 @@ class PygameSearchGame:
             self.snap_visual_player()
         elif event.key == pygame.K_m:
             self.toggle_mode()
+        elif event.key == pygame.K_l:
+            self.lighting_enabled = not self.lighting_enabled
         elif event.key == pygame.K_h:
             self.show_hint = not self.show_hint
         elif event.key == pygame.K_g:
@@ -307,7 +313,7 @@ class PygameSearchGame:
         if self.mode == "classic":
             self.draw_classic_mode(snapshot)
         else:
-            self.draw_player_window()
+            self.draw_player_window(snapshot)
             self.draw_map_window(snapshot)
         self.draw_hud(snapshot)
         self.draw_mode_button()
@@ -318,23 +324,27 @@ class PygameSearchGame:
         self.draw_classic_lesson_panel(snapshot)
 
     def draw_mode_button(self) -> None:
-        label = "Modo 3D" if self.mode == "classic" else "Modo clasico"
-        surface = self.small_font.render(label, True, hex_color("#f8fafc"))
-        width = surface.get_width() + 18
-        height = surface.get_height() + 10
-        self.mode_button_rect = pygame.Rect(
-            self.view_width + PANEL_WIDTH - width - 12,
-            10,
-            width,
-            height,
-        )
-        pygame.draw.rect(self.screen, hex_color("#1f2937"), self.mode_button_rect, border_radius=5)
-        pygame.draw.rect(self.screen, hex_color("#94a3b8"), self.mode_button_rect, 1, border_radius=5)
-        self.screen.blit(surface, surface.get_rect(center=self.mode_button_rect.center))
+        buttons = [
+            ("Luz ON" if self.lighting_enabled else "Luz OFF", "light_button_rect"),
+            ("Modo 3D" if self.mode == "classic" else "Modo clasico", "mode_button_rect"),
+        ]
+        x = self.view_width + PANEL_WIDTH - 12
+        for label, attr in reversed(buttons):
+            surface = self.small_font.render(label, True, hex_color("#f8fafc"))
+            width = surface.get_width() + 18
+            height = surface.get_height() + 10
+            rect = pygame.Rect(x - width, 10, width, height)
+            setattr(self, attr, rect)
+            fill = "#334155" if attr == "light_button_rect" and self.lighting_enabled else "#1f2937"
+            pygame.draw.rect(self.screen, hex_color(fill), rect, border_radius=5)
+            pygame.draw.rect(self.screen, hex_color("#94a3b8"), rect, 1, border_radius=5)
+            self.screen.blit(surface, surface.get_rect(center=rect.center))
+            x = rect.left - 8
 
-    def draw_player_window(self) -> None:
+    def draw_player_window(self, snapshot: SearchSnapshot) -> None:
         self.draw_sky_and_floor()
         self.draw_raycast_walls()
+        self.draw_3d_path_traces(snapshot)
         self.draw_visible_sprites()
         self.draw_crosshair()
         direction_name = {"Left": "Oeste", "Right": "Este", "Up": "Norte", "Down": "Sur"}[self.state.direction]
@@ -363,13 +373,14 @@ class PygameSearchGame:
             if hit_axis == "y":
                 color = (max(25, color[0] - 16), max(25, color[1] - 16), max(50, color[2] - 12))
             pygame.draw.rect(self.screen, color, rect)
-        self.draw_view_darkness()
+        if self.lighting_enabled:
+            self.draw_view_darkness()
 
     def draw_view_darkness(self) -> None:
         overlay = pygame.Surface((self.view_width, self.view_height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 70))
+        overlay.fill((0, 0, 0, 38))
         center = (self.view_width // 2, self.view_height // 2)
-        for radius, amount in ((320, 18), (235, 22), (165, 30), (92, 48)):
+        for radius, amount in ((360, 12), (260, 16), (175, 24), (98, 34)):
             self.subtract_alpha_circle(overlay, center, radius, amount)
         self.screen.blit(overlay, (0, 0))
 
@@ -431,6 +442,67 @@ class PygameSearchGame:
                 else:
                     pygame.draw.circle(self.screen, hex_color("#ffffff"), (screen_x, y), radius + 4, 1)
 
+    def draw_3d_path_traces(self, snapshot: SearchSnapshot) -> None:
+        if self.show_ghost_paths:
+            for ghost, search in zip(self.state.ghosts, snapshot.ghost_searches):
+                self.draw_3d_path_arrows(search.path[1:9], ghost.path_color, 22, 215)
+        if self.show_hint:
+            self.draw_3d_path_arrows(snapshot.player_hint.path[1:8], "#2ec4b6", 11, 185)
+
+    def draw_3d_path_arrows(self, path: list[Pos], color: str, max_size: int, alpha: int) -> None:
+        if not path:
+            return
+
+        projected: list[tuple[float, int, int, int, int]] = []
+        for index, pos in enumerate(path):
+            projection = self.project_sprite(pos)
+            if projection is None:
+                continue
+            screen_x, depth = projection
+            y = int(self.view_height // 2 + min(self.view_height * 0.34, self.view_height / depth * 0.18))
+            size = int(max(max_size * 0.42, min(max_size, max_size / max(0.7, depth) * 1.45)))
+            projected.append((depth, index, screen_x, y, size))
+
+        points_by_index = {index: (screen_x, y) for _, index, screen_x, y, _ in projected}
+        arrow_surface = pygame.Surface((self.view_width, self.view_height), pygame.SRCALPHA)
+        rgb = hex_color(color)
+        pulse_index = (pygame.time.get_ticks() // 145) % max(1, len(path))
+        for depth, index, screen_x, y, size in sorted(projected, reverse=True):
+            next_point = points_by_index.get(index + 1)
+            angle = -math.pi / 2
+            if next_point is not None:
+                angle = math.atan2(next_point[1] - y, next_point[0] - screen_x)
+            pulse = 1.0 if index == pulse_index else 0.0
+            marker_size = int(size * (1.0 + pulse * 0.32))
+            marker_alpha = min(255, int(alpha * (1.0 + pulse * 0.2)))
+            self.draw_arrow_marker(arrow_surface, (screen_x, y), angle, marker_size, (*rgb, marker_alpha))
+            fade_alpha = max(45, min(145, int(marker_alpha / max(1.0, depth))))
+            pygame.draw.circle(arrow_surface, (*rgb, fade_alpha), (screen_x, y), max(2, marker_size // 5))
+        self.screen.blit(arrow_surface, (0, 0))
+
+    def draw_arrow_marker(
+        self,
+        surface: pygame.Surface,
+        center: tuple[int, int],
+        angle: float,
+        size: int,
+        color: tuple[int, int, int, int],
+    ) -> None:
+        tip = (
+            center[0] + math.cos(angle) * size,
+            center[1] + math.sin(angle) * size,
+        )
+        left = (
+            center[0] + math.cos(angle + 2.42) * size * 0.72,
+            center[1] + math.sin(angle + 2.42) * size * 0.72,
+        )
+        right = (
+            center[0] + math.cos(angle - 2.42) * size * 0.72,
+            center[1] + math.sin(angle - 2.42) * size * 0.72,
+        )
+        pygame.draw.polygon(surface, color, [tip, left, right])
+        pygame.draw.polygon(surface, (255, 255, 255, min(160, color[3])), [tip, left, right], 1)
+
     def project_sprite(self, pos: Pos) -> tuple[int, float] | None:
         return self.project_sprite_float((float(pos[0]), float(pos[1])))
 
@@ -460,9 +532,9 @@ class PygameSearchGame:
     def draw_map_window(self, snapshot: SearchSnapshot) -> None:
         left = self.view_width
         pygame.draw.rect(self.screen, hex_color("#0f172a"), (left, 0, PANEL_WIDTH, self.view_height + HUD_HEIGHT))
-        self.draw_text("Mapa y busqueda", left + 16, 16, self.title_font, "#f8fafc")
+        self.draw_text("Mapa y busqueda", left + 16, 42, self.title_font, "#f8fafc")
 
-        origin = (left + 18, 58)
+        origin = (left + 18, 84)
         pygame.draw.rect(
             self.screen,
             hex_color("#020617"),
@@ -497,8 +569,8 @@ class PygameSearchGame:
     def draw_classic_lesson_panel(self, snapshot: SearchSnapshot) -> None:
         left = self.view_width
         pygame.draw.rect(self.screen, hex_color("#0f172a"), (left, 0, PANEL_WIDTH, self.view_height + HUD_HEIGHT))
-        self.draw_text("Dijkstra paso a paso", left + 16, 16, self.title_font, "#f8fafc")
-        self.draw_lesson_panel(snapshot, left, 58)
+        self.draw_text("Dijkstra paso a paso", left + 16, 42, self.title_font, "#f8fafc")
+        self.draw_lesson_panel(snapshot, left, 84)
 
     def draw_search_layers(self, snapshot: SearchSnapshot, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
         if self.show_hint:
@@ -576,26 +648,38 @@ class PygameSearchGame:
             self.draw_text(ghost.algorithm, center[0] + radius + 2, center[1] - radius, self.small_font, "#f8fafc")
 
     def draw_map_light(self, origin: tuple[int, int], cell_size: int = MAP_CELL) -> None:
+        if not self.lighting_enabled:
+            return
         width = self.state.maze.width * cell_size
         height = self.state.maze.height * cell_size
         overlay = pygame.Surface((width, height), pygame.SRCALPHA)
-        overlay.fill((0, 0, 0, 218))
+        overlay.fill((0, 0, 0, 142))
         center = self.map_center_float(self.visual_player_pos, (0, 0), cell_size)
         polygon = self.light_polygon(center, cell_size)
         if len(polygon) >= 3:
             light_cut = pygame.Surface((width, height), pygame.SRCALPHA)
-            pygame.draw.polygon(light_cut, (0, 0, 0, 132), polygon)
+            pygame.draw.polygon(light_cut, (0, 0, 0, 46), polygon)
+            mask = pygame.Surface((width, height), pygame.SRCALPHA)
+            pygame.draw.polygon(mask, (255, 255, 255, 255), polygon)
+            for radius, amount in (
+                (cell_size * 7, 14),
+                (cell_size * 5, 22),
+                (cell_size * 4, 28),
+                (cell_size * 3, 38),
+                (cell_size * 2, 54),
+                (cell_size, 72),
+            ):
+                pygame.draw.circle(light_cut, (0, 0, 0, amount), center, radius)
+            light_cut.blit(mask, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
             overlay.blit(light_cut, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
-        for radius, amount in (
-            (cell_size * 7, 28),
-            (cell_size * 5, 34),
-            (cell_size * 4, 44),
-            (cell_size * 3, 58),
-            (cell_size * 2, 78),
-            (cell_size, 100),
-        ):
-            self.subtract_alpha_circle(overlay, center, radius, amount)
+        self.redraw_light_blocking_walls(overlay, cell_size)
         self.screen.blit(overlay, origin)
+
+    def redraw_light_blocking_walls(self, overlay: pygame.Surface, cell_size: int) -> None:
+        wall_alpha = 82
+        for x, y in self.state.maze.walls:
+            rect = pygame.Rect(x * cell_size, y * cell_size, cell_size, cell_size)
+            pygame.draw.rect(overlay, (0, 0, 0, wall_alpha), rect)
 
     def subtract_alpha_circle(
         self,
