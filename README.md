@@ -2,14 +2,13 @@
 
 ![image](.github/logo.png)
 
-Pac-Man/DOOM-style maze game built with Python and pygame. By default, it opens in classic 2D mode; the `3D Mode` button switches to a raycasting view with a real-time search map:
+Pac-Man search game built with Python and pygame. The game uses a classic 2D board with real-time pathfinding overlays:
 
 - A* calculates a suggested path from the player to the nearest pellet.
 - A ghost chases the player using Dijkstra.
-- The side panel shows explored nodes, the frontier, and the decision tree.
+- The board can show explored nodes, the frontier, and the decision tree.
 - Dots keep their base color and show rings using the color of the enemy that reached them during the search.
 - `+` and `-` change the game speed while playing.
-- In 3D mode, arrow keys/WASD are interpreted relative to your first-person view.
 
 ## Running
 
@@ -42,7 +41,6 @@ uv run python -m doom_search
 ## Controls
 
 - Arrow keys or `WASD`: move the player.
-- `M` or the corner button: switch between classic mode and 3D mode.
 - `+` or `-`: increase or decrease speed.
 - `H`: show or hide the A* suggested path.
 - `G`: show or hide the ghost's Dijkstra path.
@@ -55,4 +53,7 @@ uv run python -m doom_search
 - `doom_search/level.py`: map, walls, pellets, and neighbors.
 - `doom_search/algorithms.py`: Dijkstra, BFS, A*, and path reconstruction.
 - `doom_search/game_state.py`: game rules and search snapshot.
-- `doom_search/pygame_app.py`: player view, tactical map, and pygame input.
+- `doom_search/animation.py`: smooth movement between grid cells.
+- `doom_search/sprites.py`: sprite loading, animation frames, and scale cache.
+- `doom_search/renderer.py`: classic board, search overlays, sprites, and HUD.
+- `doom_search/pygame_app.py`: pygame event loop and high-level app coordination.

@@ -1,3 +1,5 @@
+"""Search algorithms used by the game AI and visual overlays."""
+
 from __future__ import annotations
 
 import heapq
@@ -10,6 +12,8 @@ from doom_search.entities import Pos
 
 @dataclass(frozen=True)
 class SearchResult:
+    """Result data needed both to move actors and explain a search visually."""
+
     path: list[Pos]
     explored: set[Pos]
     came_from: dict[Pos, Pos | None]
@@ -20,6 +24,7 @@ NeighborFn = Callable[[Pos], list[Pos]]
 
 
 def bfs(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
+    """Find an unweighted shortest path with breadth-first search."""
     queue: deque[Pos] = deque([start])
     came_from: dict[Pos, Pos | None] = {start: None}
     explored: set[Pos] = set()
@@ -43,6 +48,7 @@ def bfs(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
 
 
 def dijkstra(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
+    """Find the cheapest path when each maze edge has cost one."""
     open_heap: list[tuple[int, int, Pos]] = [(0, 0, start)]
     came_from: dict[Pos, Pos | None] = {start: None}
     best_cost: dict[Pos, int] = {start: 0}
@@ -73,6 +79,7 @@ def dijkstra(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
 
 
 def a_star_to_nearest_goal(start: Pos, goals: set[Pos], neighbors: NeighborFn) -> SearchResult:
+    """Find a path to the closest reachable goal using a Manhattan heuristic."""
     if not goals:
         return SearchResult([start], set(), {start: None}, set())
 
@@ -107,6 +114,7 @@ def a_star_to_nearest_goal(start: Pos, goals: set[Pos], neighbors: NeighborFn) -
 
 
 def a_star(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
+    """Find a path to one specific goal using A* search."""
     open_heap: list[tuple[int, int, Pos]] = [(closest_goal_distance(start, {goal}), 0, start)]
     came_from: dict[Pos, Pos | None] = {start: None}
     best_cost: dict[Pos, int] = {start: 0}
@@ -138,10 +146,12 @@ def a_star(start: Pos, goal: Pos, neighbors: NeighborFn) -> SearchResult:
 
 
 def closest_goal_distance(pos: Pos, goals: set[Pos]) -> int:
+    """Return the Manhattan distance from a position to the nearest goal."""
     return min(abs(pos[0] - goal[0]) + abs(pos[1] - goal[1]) for goal in goals)
 
 
 def reconstruct_path(came_from: dict[Pos, Pos | None], current: Pos) -> list[Pos]:
+    """Walk a parent map backward and return a start-to-goal path."""
     path = [current]
     while came_from[current] is not None:
         current = came_from[current]

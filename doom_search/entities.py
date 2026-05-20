@@ -1,3 +1,5 @@
+"""Shared type aliases and simple game entities."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +12,8 @@ SearchAlgorithm = Literal["A*", "BFS", "Dijkstra"]
 
 @dataclass
 class Ghost:
+    """Enemy actor with rendering colors and a pathfinding strategy."""
+
     pos: Pos
     color: str
     name: str

@@ -1,9 +1,12 @@
+"""Color helpers for search overlays."""
+
 from __future__ import annotations
 
 from typing import Iterable
 
 
 def fade(color: str, divisor: int = 3) -> str:
+    """Darken a ``#rrggbb`` color by integer division."""
     red = int(color[1:3], 16)
     green = int(color[3:5], 16)
     blue = int(color[5:7], 16)
@@ -11,6 +14,7 @@ def fade(color: str, divisor: int = 3) -> str:
 
 
 def sum_colors(colors: Iterable[str]) -> str:
+    """Add RGB channels and clamp each channel to 255."""
     red = 0
     green = 0
     blue = 0

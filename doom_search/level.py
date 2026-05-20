@@ -1,3 +1,5 @@
+"""Maze layout and movement helpers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -43,6 +45,8 @@ KEY_TO_DIRECTION: dict[str, Direction] = {
 
 @dataclass(frozen=True)
 class Maze:
+    """Immutable maze representation built from simple text rows."""
+
     rows: tuple[str, ...]
     walls: frozenset[Pos]
     pellets: frozenset[Pos]
@@ -51,6 +55,7 @@ class Maze:
 
     @classmethod
     def from_rows(cls, rows: list[str] | tuple[str, ...]) -> "Maze":
+        """Parse walls, pellets, power pellets, and the player start."""
         if not rows:
             raise ValueError("Maze cannot be empty.")
         widths = {len(row) for row in rows}
@@ -94,14 +99,17 @@ class Maze:
         return len(self.rows)
 
     def step(self, pos: Pos, direction: Direction) -> Pos:
+        """Return the next cell in a direction, wrapping horizontally."""
         dx, dy = DIRECTIONS[direction]
         return ((pos[0] + dx) % self.width, pos[1] + dy)
 
     def can_move(self, pos: Pos, direction: Direction) -> bool:
+        """Return whether moving from a cell in a direction is legal."""
         candidate = self.step(pos, direction)
         return 0 <= candidate[1] < self.height and candidate not in self.walls
 
     def neighbors(self, pos: Pos) -> list[Pos]:
+        """Return all legal neighboring cells from a position."""
         result: list[Pos] = []
         for direction in DIRECTIONS:
             candidate = self.step(pos, direction)
