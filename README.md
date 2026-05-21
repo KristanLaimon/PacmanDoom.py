@@ -38,6 +38,22 @@ If the environment is already prepared, you can also run the module directly:
 uv run python -m doom_search
 ```
 
+## Building a Windows executable
+
+To create a distributable build for people who do not have Python installed:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_windows.ps1
+```
+
+The build output is written to:
+
+```text
+build\PacmanDoom
+```
+
+Send the whole `build\PacmanDoom` folder, not only the `.exe`, because PyInstaller keeps the runtime files and assets beside the executable.
+
 ## Controls
 
 - Arrow keys or `WASD`: move the player.

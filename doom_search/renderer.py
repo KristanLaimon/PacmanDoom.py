@@ -32,6 +32,7 @@ class ClassicRenderer:
         self.sprites = sprites
         self.animator = animator
         self.small_font = pygame.font.SysFont("Segoe UI", 13)
+        self.credit_font = pygame.font.SysFont("Segoe UI", 15)
         self.bold_font = pygame.font.SysFont("Segoe UI", 17, bold=True)
         self.title_font = pygame.font.SysFont("Segoe UI", 22, bold=True)
 
@@ -65,6 +66,14 @@ class ClassicRenderer:
         maze_height = self.state.maze.height * CLASSIC_CELL
         origin = ((VIEW_WIDTH - maze_width) // 2, (VIEW_HEIGHT - maze_height) // 2)
         pygame.draw.rect(self.screen, hex_color("#020617"), (0, 0, VIEW_WIDTH, VIEW_HEIGHT))
+        self.draw_text(
+            "Equipo: Andryk, Angélica, Kristan y Joaquín - Inteligencia artificial ITLP",
+            VIEW_WIDTH // 2,
+            VIEW_HEIGHT - 18,
+            self.credit_font,
+            "#64748b",
+            center=True,
+        )
         pygame.draw.rect(
             self.screen,
             hex_color("#050507"),
