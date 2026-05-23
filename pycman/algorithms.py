@@ -6,7 +6,7 @@ import heapq
 from dataclasses import dataclass
 from typing import Callable
 
-from doom_search.entities import Pos
+from pycman.entities import Pos
 
 
 @dataclass(frozen=True)

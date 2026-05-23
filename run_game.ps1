@@ -29,4 +29,4 @@ if (-not $python) {
     uv pip install --python $python pygame
 }
 
-& $python -m doom_search
+& $python -m pycman

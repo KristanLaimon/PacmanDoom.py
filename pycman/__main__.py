@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from doom_search.pygame_app import PygameSearchGame
+from pycman.pygame_app import PygameSearchGame
 
 
 def main() -> None:

@@ -1,8 +1,8 @@
-# PacmanDoom.py
+# Pycman
 
 ![image](.github/logo.png)
 
-Pac-Man search game built with Python and pygame. The game uses a classic 2D board with real-time pathfinding overlays:
+Pycman search game built with Python and pygame. The game uses a classic 2D board with real-time pathfinding overlays:
 
 - Pac-Man calculates the route to the nearest pellet using Dijkstra.
 - The ghost chases the player using Dijkstra.
@@ -35,7 +35,7 @@ The script keeps the cache, the `uv`-managed Python install, and the game's virt
 If the environment is already prepared, you can also run the module directly:
 
 ```powershell
-uv run python -m doom_search
+uv run python -m pycman
 ```
 
 ## Building a Windows executable
@@ -49,10 +49,10 @@ powershell -ExecutionPolicy Bypass -File .\build_windows.ps1
 The build output is written to:
 
 ```text
-build\PacmanDoom
+build\Pycman
 ```
 
-Send the whole `build\PacmanDoom` folder, not only the `.exe`, because PyInstaller keeps the runtime files and assets beside the executable.
+Send the whole `build\Pycman` folder, not only the `.exe`, because PyInstaller keeps the runtime files and assets beside the executable.
 
 ## Controls
 
@@ -66,10 +66,10 @@ Send the whole `build\PacmanDoom` folder, not only the `.exe`, because PyInstall
 
 ## Structure
 
-- `doom_search/level.py`: map, walls, pellets, and neighbors.
-- `doom_search/algorithms.py`: Dijkstra pathfinding variants and path reconstruction.
-- `doom_search/game_state.py`: game rules and search snapshot.
-- `doom_search/animation.py`: smooth movement between grid cells.
-- `doom_search/sprites.py`: sprite loading, animation frames, and scale cache.
-- `doom_search/renderer.py`: classic board, search overlays, sprites, and HUD.
-- `doom_search/pygame_app.py`: pygame event loop and high-level app coordination.
+- `pycman/level.py`: map, walls, pellets, and neighbors.
+- `pycman/algorithms.py`: Dijkstra pathfinding variants and path reconstruction.
+- `pycman/game_state.py`: game rules and search snapshot.
+- `pycman/animation.py`: smooth movement between grid cells.
+- `pycman/sprites.py`: sprite loading, animation frames, and scale cache.
+- `pycman/renderer.py`: classic board, search overlays, sprites, and HUD.
+- `pycman/pygame_app.py`: pygame event loop and high-level app coordination.

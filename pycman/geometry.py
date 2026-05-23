@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from doom_search.entities import Pos
+from pycman.entities import Pos
 
 
 def hex_color(color: str) -> tuple[int, int, int]:

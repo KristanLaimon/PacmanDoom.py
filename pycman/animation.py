@@ -5,10 +5,10 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from doom_search.entities import Direction, Pos
-from doom_search.game_state import GameState
-from doom_search.geometry import normalize_angle
-from doom_search.settings import DIRECTION_ANGLES
+from pycman.entities import Direction, Pos
+from pycman.game_state import GameState
+from pycman.geometry import normalize_angle
+from pycman.settings import DIRECTION_ANGLES
 
 FloatPos = tuple[float, float]
 

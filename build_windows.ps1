@@ -4,12 +4,12 @@ $env:UV_CACHE_DIR = ".uv-cache"
 $env:UV_PYTHON_INSTALL_DIR = ".uv-python"
 $env:UV_PROJECT_ENVIRONMENT = ".venv-game-py313"
 
-$appName = "PacmanDoom"
+$appName = "Pycman"
 $python = Join-Path $PSScriptRoot ".venv-game-py313\Scripts\python.exe"
 $buildRoot = Join-Path $PSScriptRoot "build"
 $workPath = Join-Path $buildRoot "pyinstaller-work"
 $assetsPath = Join-Path $PSScriptRoot "assets"
-$entryPoint = Join-Path $PSScriptRoot "doom_search\__main__.py"
+$entryPoint = Join-Path $PSScriptRoot "pycman\__main__.py"
 $exePath = Join-Path $buildRoot "$appName\$appName.exe"
 
 function Invoke-Step {

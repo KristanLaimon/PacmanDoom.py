@@ -6,10 +6,10 @@ import random
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from doom_search.algorithms import SearchResult, dijkstra, dijkstra_to_nearest_goal
-from doom_search.colors import sum_colors
-from doom_search.entities import Direction, Ghost, Pos
-from doom_search.level import DEFAULT_MAZE, Maze
+from pycman.algorithms import SearchResult, dijkstra, dijkstra_to_nearest_goal
+from pycman.colors import sum_colors
+from pycman.entities import Direction, Ghost, Pos
+from pycman.level import DEFAULT_MAZE, Maze
 
 
 @dataclass

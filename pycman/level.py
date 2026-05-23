@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from doom_search.entities import Direction, Pos
+from pycman.entities import Direction, Pos
 
 MAZE = [
     "#####################",

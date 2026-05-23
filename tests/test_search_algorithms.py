@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from doom_search import Ghost, MAZE, GameState, Maze, SearchResult, dijkstra, dijkstra_to_nearest_goal
-from doom_search.colors import sum_colors
+from pycman import Ghost, MAZE, GameState, Maze, SearchResult, dijkstra, dijkstra_to_nearest_goal
+from pycman.colors import sum_colors
 
 
 def build_headless_game() -> GameState:

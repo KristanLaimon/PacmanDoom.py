@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import pygame
 
-from doom_search.animation import BoardAnimator
-from doom_search.game_state import GameState
-from doom_search.level import KEY_TO_DIRECTION
-from doom_search.renderer import ClassicRenderer
-from doom_search.settings import DEFAULT_TICK_MS, HUD_HEIGHT, SMOOTH_VIEW_FPS, VIEW_HEIGHT, VIEW_WIDTH
-from doom_search.sprites import SpriteStore
+from pycman.animation import BoardAnimator
+from pycman.game_state import GameState
+from pycman.level import KEY_TO_DIRECTION
+from pycman.renderer import ClassicRenderer
+from pycman.settings import DEFAULT_TICK_MS, HUD_HEIGHT, SMOOTH_VIEW_FPS, VIEW_HEIGHT, VIEW_WIDTH
+from pycman.sprites import SpriteStore
 
 
 class PygameSearchGame:

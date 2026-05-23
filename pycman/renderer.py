@@ -7,14 +7,14 @@ from collections.abc import Iterable
 
 import pygame
 
-from doom_search.algorithms import SearchResult
-from doom_search.animation import BoardAnimator
-from doom_search.colors import fade
-from doom_search.entities import Pos
-from doom_search.game_state import GameState, SearchSnapshot
-from doom_search.geometry import hex_color, map_center, map_center_float
-from doom_search.settings import CLASSIC_CELL, HUD_HEIGHT, VIEW_HEIGHT, VIEW_WIDTH
-from doom_search.sprites import SpriteStore
+from pycman.algorithms import SearchResult
+from pycman.animation import BoardAnimator
+from pycman.colors import fade
+from pycman.entities import Pos
+from pycman.game_state import GameState, SearchSnapshot
+from pycman.geometry import hex_color, map_center, map_center_float
+from pycman.settings import CLASSIC_CELL, HUD_HEIGHT, VIEW_HEIGHT, VIEW_WIDTH
+from pycman.sprites import SpriteStore
 
 
 class ClassicRenderer:
@@ -206,7 +206,7 @@ class ClassicRenderer:
             "#f9fafb",
         )
         self.draw_text(
-            f"Pacman Dijkstra: ruta {max(0, len(snapshot.player_hint.path) - 1)} pasos, {len(snapshot.player_hint.explored)} nodos | "
+            f"Pycman Dijkstra: ruta {max(0, len(snapshot.player_hint.path) - 1)} pasos, {len(snapshot.player_hint.explored)} nodos | "
             f"Fantasma Dijkstra: {ghost_nodes} nodos",
             12,
             top + 38,

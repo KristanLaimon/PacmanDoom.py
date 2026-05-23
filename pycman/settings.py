@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from doom_search.entities import Direction
+from pycman.entities import Direction
 
 VIEW_WIDTH = 760
 VIEW_HEIGHT = 520

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pygame
 
-from doom_search.settings import ASSET_DIR, FRAME_DIR, GHOST_ANIMATION_MS, PACMAN_ANIMATION_MS
+from pycman.settings import ASSET_DIR, FRAME_DIR, GHOST_ANIMATION_MS, PACMAN_ANIMATION_MS
 
 SPRITE_FILES = {
     "pac_up": "pac_up.gif",
