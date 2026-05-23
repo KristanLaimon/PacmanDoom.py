@@ -206,7 +206,7 @@ class ClassicRenderer:
             "#f9fafb",
         )
         self.draw_text(
-            f"A*: ruta {max(0, len(snapshot.player_hint.path) - 1)} pasos, {len(snapshot.player_hint.explored)} nodos | "
+            f"Pacman Dijkstra: ruta {max(0, len(snapshot.player_hint.path) - 1)} pasos, {len(snapshot.player_hint.explored)} nodos | "
             f"Fantasma Dijkstra: {ghost_nodes} nodos",
             12,
             top + 38,

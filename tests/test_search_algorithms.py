@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from doom_search import Ghost, MAZE, GameState, Maze, SearchResult, a_star, a_star_to_nearest_goal, bfs, dijkstra
+from doom_search import Ghost, MAZE, GameState, Maze, SearchResult, dijkstra, dijkstra_to_nearest_goal
 from doom_search.colors import sum_colors
 
 
@@ -15,43 +15,33 @@ class SearchAlgorithmTests(unittest.TestCase):
         widths = {len(row) for row in MAZE}
         self.assertEqual(widths, {21})
 
-    def test_bfs_finds_path_around_wall(self) -> None:
+    def test_dijkstra_finds_path_around_wall(self) -> None:
         game = build_headless_game()
 
-        result = bfs((1, 1), (9, 1), game.maze.neighbors)
+        result = dijkstra((1, 1), (9, 1), game.maze.neighbors)
 
         self.assertEqual(result.path[0], (1, 1))
         self.assertEqual(result.path[-1], (9, 1))
         self.assertTrue(all(pos not in game.maze.walls for pos in result.path))
 
-    def test_a_star_targets_nearest_pellet(self) -> None:
+    def test_dijkstra_targets_nearest_pellet(self) -> None:
         maze = Maze.from_rows(["     ", "P. . ", "     "])
 
-        result = a_star_to_nearest_goal(maze.player_start, set(maze.pellets), maze.neighbors)
+        result = dijkstra_to_nearest_goal(maze.player_start, set(maze.pellets), maze.neighbors)
 
         self.assertEqual(result.path[0], (0, 1))
         self.assertIn(result.path[-1], maze.pellets)
         self.assertEqual(len(result.path), 2)
         self.assertIn((0, 1), result.explored)
 
-    def test_a_star_finds_specific_goal(self) -> None:
-        game = build_headless_game()
-
-        result = a_star((1, 1), (9, 1), game.maze.neighbors)
-
-        self.assertEqual(result.path[0], (1, 1))
-        self.assertEqual(result.path[-1], (9, 1))
-        self.assertTrue(all(pos not in game.maze.walls for pos in result.path))
-
     def test_dijkstra_finds_shortest_path(self) -> None:
         game = build_headless_game()
 
         result = dijkstra((1, 1), (9, 1), game.maze.neighbors)
-        bfs_result = bfs((1, 1), (9, 1), game.maze.neighbors)
 
         self.assertEqual(result.path[0], (1, 1))
         self.assertEqual(result.path[-1], (9, 1))
-        self.assertEqual(len(result.path), len(bfs_result.path))
+        self.assertEqual(len(result.path), 9)
 
     def test_all_pellets_are_reachable(self) -> None:
         game = build_headless_game()
@@ -59,7 +49,7 @@ class SearchAlgorithmTests(unittest.TestCase):
 
         for target in targets:
             with self.subTest(target=target):
-                result = game.bfs(game.player, target)
+                result = game.dijkstra(game.player, target)
                 self.assertEqual(result.path[-1], target)
 
     def test_level_has_no_single_exit_dead_ends(self) -> None:
@@ -85,7 +75,7 @@ class SearchAlgorithmTests(unittest.TestCase):
         game.pellets = {(2, 1), (3, 1)}
         game.power_pellets = set()
         game.ghosts = [
-            Ghost((1, 1), "#100000", "Rojo", (1, 1), "A*", "#080000", "#100000"),
+            Ghost((1, 1), "#100000", "Rojo", (1, 1), "Dijkstra", "#080000", "#100000"),
             Ghost((4, 1), "#002000", "Verde", (4, 1), "Dijkstra", "#001000", "#002000"),
         ]
         searches = [

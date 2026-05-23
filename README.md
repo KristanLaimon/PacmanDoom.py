@@ -4,8 +4,8 @@
 
 Pac-Man search game built with Python and pygame. The game uses a classic 2D board with real-time pathfinding overlays:
 
-- A* calculates a suggested path from the player to the nearest pellet.
-- A ghost chases the player using Dijkstra.
+- Pac-Man calculates the route to the nearest pellet using Dijkstra.
+- The ghost chases the player using Dijkstra.
 - The board can show explored nodes, the frontier, and the decision tree.
 - Dots keep their base color and show rings using the color of the enemy that reached them during the search.
 - `+` and `-` change the game speed while playing.
@@ -58,7 +58,7 @@ Send the whole `build\PacmanDoom` folder, not only the `.exe`, because PyInstall
 
 - Arrow keys or `WASD`: move the player.
 - `+` or `-`: increase or decrease speed.
-- `H`: show or hide the A* suggested path.
+- `H`: show or hide the Dijkstra suggested path.
 - `G`: show or hide the ghost's Dijkstra path.
 - `T`: show or hide decision tree lines.
 - `Space`: pause or resume.
@@ -67,7 +67,7 @@ Send the whole `build\PacmanDoom` folder, not only the `.exe`, because PyInstall
 ## Structure
 
 - `doom_search/level.py`: map, walls, pellets, and neighbors.
-- `doom_search/algorithms.py`: Dijkstra, BFS, A*, and path reconstruction.
+- `doom_search/algorithms.py`: Dijkstra pathfinding variants and path reconstruction.
 - `doom_search/game_state.py`: game rules and search snapshot.
 - `doom_search/animation.py`: smooth movement between grid cells.
 - `doom_search/sprites.py`: sprite loading, animation frames, and scale cache.

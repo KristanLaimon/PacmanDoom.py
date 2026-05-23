@@ -1,7 +1,7 @@
 [project]
 name = "doom-search"
 version = "0.1.0"
-description = "Classic pygame maze game with visible A* and Dijkstra search."
+description = "Classic pygame maze game with visible Dijkstra pathfinding."
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "pygame>=2.6.1",

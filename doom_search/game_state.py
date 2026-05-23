@@ -6,7 +6,7 @@ import random
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from doom_search.algorithms import SearchResult, a_star, a_star_to_nearest_goal, bfs, dijkstra
+from doom_search.algorithms import SearchResult, dijkstra, dijkstra_to_nearest_goal
 from doom_search.colors import sum_colors
 from doom_search.entities import Direction, Ghost, Pos
 from doom_search.level import DEFAULT_MAZE, Maze
@@ -144,29 +144,17 @@ class GameState:
         for ghost in self.ghosts:
             ghost.pos = ghost.start
 
-    def bfs(self, start: Pos, goal: Pos) -> SearchResult:
-        """Run BFS against this state's maze."""
-        return bfs(start, goal, self.maze.neighbors)
-
-    def a_star(self, start: Pos, goal: Pos) -> SearchResult:
-        """Run A* against this state's maze."""
-        return a_star(start, goal, self.maze.neighbors)
-
     def dijkstra(self, start: Pos, goal: Pos) -> SearchResult:
         """Run Dijkstra against this state's maze."""
         return dijkstra(start, goal, self.maze.neighbors)
 
     def ghost_search(self, ghost: Ghost) -> SearchResult:
-        """Run the pathfinding algorithm configured for one ghost."""
-        if ghost.algorithm == "A*":
-            return self.a_star(ghost.pos, self.player)
-        if ghost.algorithm == "BFS":
-            return self.bfs(ghost.pos, self.player)
+        """Run the ghost pathfinding using Dijkstra only."""
         return self.dijkstra(ghost.pos, self.player)
 
     def player_hint(self) -> SearchResult:
-        """Suggest a path from the player to the nearest remaining pellet."""
-        return a_star_to_nearest_goal(self.player, self.pellets | self.power_pellets, self.maze.neighbors)
+        """Suggest a path from the player to the nearest remaining pellet with Dijkstra."""
+        return dijkstra_to_nearest_goal(self.player, self.pellets | self.power_pellets, self.maze.neighbors)
 
     def search_snapshot(self) -> SearchSnapshot:
         """Build the search data needed for a single rendered frame."""

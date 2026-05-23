@@ -7,7 +7,7 @@ from typing import Literal
 
 Pos = tuple[int, int]
 Direction = Literal["Up", "Down", "Left", "Right"]
-SearchAlgorithm = Literal["A*", "BFS", "Dijkstra"]
+SearchAlgorithm = Literal["Dijkstra"]
 
 
 @dataclass
